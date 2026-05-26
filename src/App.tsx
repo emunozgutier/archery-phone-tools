@@ -42,7 +42,9 @@ function App() {
     preferredDistance,
     setPreferredDistance,
     tempSessionData,
-    setTempSessionData
+    setTempSessionData,
+    isCameraEnabled,
+    setIsCameraEnabled
   } = useGlobal();
 
   const { logs, clearLogs } = useErrorLog();
@@ -138,6 +140,14 @@ function App() {
       camera.resetVideo();
     }
   }, [camera.recordedVideoUrl, tempSessionData, setTempSessionData, camera]);
+
+  // Auto-unlock onboarding when both Motion and Camera permissions are granted
+  useEffect(() => {
+    if (appState === 'permissions' && sensors.permissionGranted === true && camera.cameraActive === true) {
+      useErrorLog.getState().addLog('Auto-unlocking onboarding: Both Motion & Camera permissions are active.');
+      setIsOnboarded(true);
+    }
+  }, [appState, sensors.permissionGranted, camera.cameraActive, setIsOnboarded]);
 
   // Toggle sensor simulation
   const handleToggleMock = () => {
@@ -347,16 +357,16 @@ function App() {
     }
   };
 
-  // Manage camera lifecycles based on tab states
+  // Manage camera lifecycles based on tab states and preference
   useEffect(() => {
     if (isOnboarded && !isMockActive) {
-      if (activeTab === 'tracker') {
+      if (activeTab === 'tracker' && isCameraEnabled) {
         camera.startCamera();
       } else {
         camera.stopCamera();
       }
     }
-  }, [activeTab, isOnboarded, isMockActive, camera]);
+  }, [activeTab, isOnboarded, isMockActive, isCameraEnabled, camera]);
 
   return (
     <>
@@ -608,7 +618,41 @@ function App() {
                   />
 
                   {/* Back Camera Live Stream or Simulated Mock Background */}
-                  {isMockActive ? (
+                  {!isCameraEnabled ? (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      background: 'radial-gradient(circle at center, #13141f 0%, #08080c 100%)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-secondary)',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      zIndex: 1
+                    }}>
+                      <div style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 204, 0, 0.03)',
+                        border: '1px solid rgba(255, 204, 0, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '16px',
+                        boxShadow: 'inset 0 0 20px rgba(255, 204, 0, 0.05)'
+                      }}>
+                        <span style={{ fontSize: '36px', filter: 'drop-shadow(0 0 10px rgba(255, 204, 0, 0.2))' }}>📊</span>
+                      </div>
+                      <h3 style={{ color: '#fff', fontSize: '15px', fontWeight: 600, margin: '0 0 6px 0' }}>Sensor-Only Telemetry Mode</h3>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, opacity: 0.7, maxWidth: '240px', lineHeight: '1.4', padding: '0 20px' }}>
+                        Camera feedback is disabled. Real-time telemetry, leveling, and bow stability are active.
+                      </p>
+                    </div>
+                  ) : isMockActive ? (
                     <div style={{
                       width: '100%',
                       height: '100%',
@@ -782,6 +826,57 @@ function App() {
                   <h3 style={{ color: '#fff', fontSize: '15px', textAlign: 'left' }}>⚙️ Performance Preferences</h3>
                   <p className="subtitle" style={{ marginTop: '-8px', fontSize: '11px', textAlign: 'left' }}>Lower refresh rates and camera details to prevent phone lockups.</p>
                   
+                  {/* Camera Feedback Toggle Card */}
+                  <div className="glass-card" style={{
+                    margin: 0,
+                    padding: '14px 16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '12px'
+                  }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <h4 style={{ color: '#fff', fontSize: '13px', margin: '0 0 4px 0', fontWeight: 600 }}>Camera Video Feed</h4>
+                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                        Disable feed to save battery and run in sensor-only mode.
+                      </p>
+                    </div>
+                    
+                    <div style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                      <button
+                        onClick={() => {
+                          setIsCameraEnabled(!isCameraEnabled);
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '12px',
+                          background: isCameraEnabled ? 'linear-gradient(135deg, var(--steady), #2196f3)' : 'rgba(255,255,255,0.1)',
+                          border: 'none',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          padding: 0,
+                          boxShadow: isCameraEnabled ? '0 0 10px rgba(46, 204, 113, 0.4)' : 'none'
+                        }}
+                      >
+                        <span style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: isCameraEnabled ? '26px' : '2px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: '#fff',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }} />
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Sensor Rate Selection */}
                   <div>
                     <label style={{ fontSize: '12px', color: '#fff', display: 'block', marginBottom: '8px', textAlign: 'left' }}>

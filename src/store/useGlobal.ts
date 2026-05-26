@@ -20,6 +20,7 @@ interface GlobalState {
   currentArrowNumber: number;
   preferredDistance: number; // in meters (default 70)
   tempSessionData: Partial<ArcherySession> | null;
+  isCameraEnabled: boolean;
   
   setActiveTab: (tab: GlobalState['activeTab']) => void;
   setAppState: (state: GlobalState['appState']) => void;
@@ -35,6 +36,7 @@ interface GlobalState {
   setCurrentArrowNumber: (num: number) => void;
   setPreferredDistance: (dist: number) => void;
   setTempSessionData: (data: Partial<ArcherySession> | null) => void;
+  setIsCameraEnabled: (enabled: boolean) => void;
   
   addSession: (session: ArcherySession) => void;
   deleteSession: (id: string) => void;
@@ -50,6 +52,14 @@ export const useGlobal = create<GlobalState>((set) => ({
   currentArrowNumber: 1,
   preferredDistance: 70,
   tempSessionData: null,
+  isCameraEnabled: (() => {
+    try {
+      const saved = localStorage.getItem('archery_camera_enabled');
+      return saved !== 'false';
+    } catch {
+      return true;
+    }
+  })(),
   
   sensorRefreshRate: (() => {
     try {
@@ -142,6 +152,15 @@ export const useGlobal = create<GlobalState>((set) => ({
   setCurrentArrowNumber: (currentArrowNumber) => set({ currentArrowNumber }),
   setPreferredDistance: (preferredDistance) => set({ preferredDistance }),
   setTempSessionData: (tempSessionData) => set({ tempSessionData }),
+  setIsCameraEnabled: (isCameraEnabled) => {
+    useErrorLog.getState().addLog(`Camera feedback setting: ${isCameraEnabled ? 'Enabled' : 'Disabled'}`);
+    try {
+      localStorage.setItem('archery_camera_enabled', String(isCameraEnabled));
+    } catch (e) {
+      console.warn('Failed to save camera enabled preference to localStorage', e);
+    }
+    set({ isCameraEnabled });
+  },
   
   addSession: (session) => {
     useErrorLog.getState().addLog(`Saving new session: ${session.type} Mode, stability: ${100 - session.avgVibration}%`);
