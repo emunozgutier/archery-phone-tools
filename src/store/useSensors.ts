@@ -9,6 +9,7 @@ interface SensorsState {
   // Throttled HUD state
   orientation: { alpha: number; beta: number; gamma: number; heading: number };
   vibrationIndex: number;
+  rawAccel: { x: number; y: number; z: number };
   triggerState: 'IDLE' | 'ARMED' | 'AIMING';
   isRecording: boolean;
   
@@ -34,6 +35,7 @@ interface SensorsState {
 // Module-level refs to store high-frequency readings without triggering React state updates
 export const latestOrientationRef = { current: { alpha: 0, beta: 0, gamma: 0, heading: 0 } };
 export const latestVibrationRef = { current: 0 };
+export const latestAccelRef = { current: { x: 0, y: 0, z: 0 } };
 export const rollingBufferRef = { current: [] as SensorDataPoint[] };
 export const recordingBufferRef = { current: [] as SensorDataPoint[] };
 
@@ -62,6 +64,7 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
   
   orientation: { alpha: 0, beta: 0, gamma: 0, heading: 0 },
   vibrationIndex: 0,
+  rawAccel: { x: 0, y: 0, z: 0 },
   triggerState: 'IDLE',
   isRecording: false,
   

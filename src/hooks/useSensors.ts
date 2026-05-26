@@ -5,6 +5,7 @@ import {
   useSensorsStore,
   latestOrientationRef,
   latestVibrationRef,
+  latestAccelRef,
   rollingBufferRef,
   triggerHapticSingle,
   triggerHapticDouble,
@@ -145,6 +146,14 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       const rawY = acc.y || 0;
       const rawZ = acc.z || 0;
 
+      // Capture static acceleration including gravity to show exactly which physical axes are aligned with gravity
+      const grav = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 };
+      latestAccelRef.current = {
+        x: Math.round((grav.x || 0) * 100) / 100,
+        y: Math.round((grav.y || 0) * 100) / 100,
+        z: Math.round((grav.z || 0) * 100) / 100
+      };
+
       // Compute High-Frequency Vibration (High pass filtering)
       const diffX = rawX - prevAcc.current.x;
       const diffY = rawY - prevAcc.current.y;
@@ -202,12 +211,12 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     window.addEventListener('deviceorientation', handleOrientation);
     window.addEventListener('devicemotion', handleMotion);
 
-    // --- VARIABLE DISPLAY THROTTLER TIMER ---
     // Only update standard React/Zustand state at the user-defined frequency to prevent mobile throttling.
     const throttleInterval = setInterval(() => {
       useSensorsStore.setState({
         orientation: { ...latestOrientationRef.current },
-        vibrationIndex: latestVibrationRef.current
+        vibrationIndex: latestVibrationRef.current,
+        rawAccel: { ...latestAccelRef.current }
       });
     }, 1000 / sensorRefreshRate); // Dynamic refresh rate updates for HUD values
 
@@ -231,6 +240,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     requestPermissions: store.requestPermissions,
     orientation: store.orientation,
     vibrationIndex: store.vibrationIndex,
+    rawAccel: store.rawAccel,
     isRecording: store.isRecording,
     sensorHistory: store.sensorHistory,
     rollingBufferRef: rollingBufferRef,
