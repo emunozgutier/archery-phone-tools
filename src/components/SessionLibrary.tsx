@@ -11,6 +11,11 @@ export interface ArcherySession {
   maxVibration: number;
   sensorData: SensorDataPoint[];
   videoUrl?: string | null;
+  arrowNumber?: number;
+  distance?: number;
+  score?: number;
+  arrowX?: number; // Normalized coordinate percentage from center (-100 to 100)
+  arrowY?: number; // Normalized coordinate percentage from center (-100 to 100)
 }
 
 interface SessionLibraryProps {
@@ -102,6 +107,19 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                     }}>
                       {session.type} Mode
                     </span>
+                    {session.score !== undefined && (
+                      <span style={{
+                        fontSize: '10px',
+                        background: 'rgba(46, 204, 113, 0.15)',
+                        color: 'var(--steady)',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        fontWeight: 'bold',
+                        marginLeft: '8px'
+                      }}>
+                        🏹 Arrow #{session.arrowNumber} • {session.distance}m • Score: {session.score}
+                      </span>
+                    )}
                     <h4 style={{ color: '#fff', fontSize: '15px', marginTop: '6px' }}>{formatDate(session.timestamp)}</h4>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                       Duration: {session.duration}s • Points: {session.sensorData.length}
@@ -188,6 +206,64 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Arrow & Target group card */}
+            {selectedSession.score !== undefined && (
+              <div className="glass-card" style={{ margin: '0 0 20px 0', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <h4 style={{ color: '#fff', fontSize: '14px', marginBottom: '12px', width: '100%', textAlign: 'left' }}>Arrow Release Scoring Detail</h4>
+                
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center', width: '100%', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  
+                  {/* FITA Target face */}
+                  <div style={{ position: 'relative', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-glass)' }}>
+                    <svg width="220" height="220" viewBox="0 0 220 220" style={{ display: 'block', margin: '0 auto' }}>
+                      {/* White rings */}
+                      <circle cx="110" cy="110" r="100" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                      <circle cx="110" cy="110" r="80" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                      {/* Black rings */}
+                      <circle cx="110" cy="110" r="64" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                      <circle cx="110" cy="110" r="48" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                      {/* Blue rings */}
+                      <circle cx="110" cy="110" r="36" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                      <circle cx="110" cy="110" r="26" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                      {/* Red rings */}
+                      <circle cx="110" cy="110" r="18" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                      <circle cx="110" cy="110" r="12" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                      {/* Gold rings */}
+                      <circle cx="110" cy="110" r="7" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                      <circle cx="110" cy="110" r="3.5" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                      {/* Center Cross */}
+                      <circle cx="110" cy="110" r="0.5" fill="#333" />
+                      
+                      {/* Plotted Arrow landing position */}
+                      {selectedSession.arrowX !== undefined && selectedSession.arrowY !== undefined && (
+                        <g>
+                          <circle cx={110 + selectedSession.arrowX} cy={110 + selectedSession.arrowY} r="7" fill="var(--steady)" opacity="0.6" className="pulsing" />
+                          <circle cx={110 + selectedSession.arrowX} cy={110 + selectedSession.arrowY} r="3" fill="#fff" stroke="var(--steady)" strokeWidth="1.5" />
+                        </g>
+                      )}
+                    </svg>
+                  </div>
+
+                  {/* Bullet Stats */}
+                  <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--gold)' }}>
+                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>ARROW NUMBER</span>
+                      <strong style={{ fontSize: '15px', color: '#fff' }}>Arrow #{selectedSession.arrowNumber}</strong>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--blue)' }}>
+                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>TARGET DISTANCE</span>
+                      <strong style={{ fontSize: '15px', color: '#fff' }}>{selectedSession.distance} Meters</strong>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--steady)' }}>
+                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>CALCULATED SCORE</span>
+                      <strong style={{ fontSize: '16px', color: 'var(--steady)' }}>{selectedSession.score} Points {selectedSession.score >= 9 ? '🎯 Gold!' : ''}</strong>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
 
             {/* Sync Video Player (If video session) */}
             {selectedSession.type === 'video' && selectedSession.videoUrl && (

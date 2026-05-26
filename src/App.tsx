@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSensors } from './hooks/useSensors';
 import type { SensorDataPoint } from './hooks/useSensors';
 import type { ArcherySession } from './components/SessionLibrary';
@@ -33,7 +33,16 @@ function App() {
     cameraResolution,
     setCameraResolution,
     cameraFps,
-    setCameraFps
+    setCameraFps,
+    // State machine additions:
+    appState,
+    setAppState,
+    currentArrowNumber,
+    setCurrentArrowNumber,
+    preferredDistance,
+    setPreferredDistance,
+    tempSessionData,
+    setTempSessionData
   } = useGlobal();
 
   const { logs, clearLogs } = useErrorLog();
@@ -41,6 +50,7 @@ function App() {
 
   const [appVersion, setAppVersion] = useState<{ version: string; dateTime: string } | null>(null);
   const [showDownWarning, setShowDownWarning] = useState<'stopped' | 'blocked' | null>(null);
+  const [clickCoord, setClickCoord] = useState<{ x: number; y: number; score: number } | null>(null);
 
   useEffect(() => {
     fetch('./version.json')
@@ -76,27 +86,6 @@ function App() {
     () => autoRecordStopRef.current()
   );
 
-  // Sync state fallback when saving a sensor-only session (no video compiled callback)
-  const saveCapturedSession = useCallback((sensorPoints: SensorDataPoint[]) => {
-    const isCameraRunning = camera.cameraActive && !isMockActive;
-    if (activeTab === 'tracker' && sensorPoints.length > 0 && !isCameraRunning) {
-      const newSession: ArcherySession = {
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        type: 'sensor',
-        duration: Math.round(sensorPoints.length / 50), // roughly 50-60hz
-        avgVibration: Math.round(
-          sensorPoints.reduce((acc, curr) => acc + curr.vibration, 0) / 
-          sensorPoints.length
-        ),
-        maxVibration: Math.max(...sensorPoints.map((p) => p.vibration)),
-        sensorData: sensorPoints
-      };
-
-      addSession(newSession);
-    }
-  }, [activeTab, addSession, camera.cameraActive, isMockActive]);
-
   // Sync hoisted callback refs inside an effect body to keep the render phase pure and compliant with React 19 ref assignment rules
   useEffect(() => {
     autoRecordStartRef.current = () => {
@@ -110,45 +99,45 @@ function App() {
       let capturedSensorPoints: SensorDataPoint[] = [];
       if (sensors.isRecording) {
         capturedSensorPoints = sensors.stopRecording();
-        setShowDownWarning('stopped');
       }
-      if (camera.isRecordingVideo) {
-        camera.stopVideoRecording();
-      }
-      setTimeout(() => {
-        saveCapturedSession(capturedSensorPoints);
-      }, 400); // Allow brief latency to compile final video blob
-    };
-  }, [camera, sensors, activeTab, saveCapturedSession]);
-
-  // Watch for compilation of recorded video to pair and save with sensor data
-  useEffect(() => {
-    if (camera.recordedVideoUrl && sensors.sensorHistory.length > 0) {
-      const isVideo = activeTab === 'tracker';
-      const historyCopy = [...sensors.sensorHistory];
-      const videoUrlCopy = camera.recordedVideoUrl;
       
-      const newSession: ArcherySession = {
+      const isVideo = camera.cameraActive && !isMockActive;
+      const tempData: Partial<ArcherySession> = {
         id: Date.now().toString(),
         timestamp: Date.now(),
         type: isVideo ? 'video' : 'sensor',
-        duration: Math.round(historyCopy.length / 60), // ~60 data points per second
+        duration: Math.round(capturedSensorPoints.length / 60) || 4,
         avgVibration: Math.round(
-          historyCopy.reduce((acc, curr) => acc + curr.vibration, 0) / 
-          historyCopy.length
+          capturedSensorPoints.reduce((acc, curr) => acc + curr.vibration, 0) / 
+          (capturedSensorPoints.length || 1)
         ),
-        maxVibration: Math.max(...historyCopy.map((p) => p.vibration)),
-        sensorData: historyCopy,
-        videoUrl: isVideo ? videoUrlCopy : null
+        maxVibration: Math.max(...capturedSensorPoints.map((p) => p.vibration), 0),
+        sensorData: capturedSensorPoints,
+        videoUrl: null
       };
 
-      // Safely defer state updates out of effect body to avoid render cascade
-      setTimeout(() => {
-        addSession(newSession);
-        camera.resetVideo();
-      }, 0);
+      setTempSessionData(tempData);
+
+      if (camera.isRecordingVideo) {
+        camera.stopVideoRecording();
+      }
+
+      setAppState('post_shot');
+      setShowDownWarning('stopped');
+    };
+  }, [camera, sensors, activeTab, isMockActive, setAppState, setTempSessionData]);
+
+  // Watch for compilation of recorded video to pair and save with sensor data
+  useEffect(() => {
+    if (camera.recordedVideoUrl && tempSessionData) {
+      const updatedTemp = {
+        ...tempSessionData,
+        videoUrl: camera.recordedVideoUrl
+      };
+      setTempSessionData(updatedTemp);
+      camera.resetVideo();
     }
-  }, [camera, sensors.sensorHistory, activeTab, addSession]);
+  }, [camera.recordedVideoUrl, tempSessionData, setTempSessionData, camera]);
 
   // Toggle sensor simulation
   const handleToggleMock = () => {
@@ -239,6 +228,84 @@ function App() {
   const currentHeading = isMockActive ? 184 : sensors.orientation.heading;
   const currentVibration = isMockActive ? mockVibration : sensors.vibrationIndex;
 
+  // Click handler for interactive FITA target face
+  const handleTargetClick = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    
+    // Coordinates relative to SVG center (110, 110)
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    const size = 220;
+    const cx = size / 2;
+    const cy = size / 2;
+    const dx = clickX - cx;
+    const dy = clickY - cy;
+    
+    const maxRadius = 100; // Radius of outer circle in SVG
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    // Clamp coordinates to target boundaries
+    let normX = dx;
+    let normY = dy;
+    if (dist > maxRadius) {
+      const scale = maxRadius / dist;
+      normX *= scale;
+      normY *= scale;
+    }
+    
+    // Calculate FITA target score (10 to 1) based on normalized distance
+    const normDist = Math.sqrt(normX * normX + normY * normY);
+    let calculatedScore = 0;
+    if (normDist <= 10) calculatedScore = 10;
+    else if (normDist <= 20) calculatedScore = 9;
+    else if (normDist <= 30) calculatedScore = 8;
+    else if (normDist <= 40) calculatedScore = 7;
+    else if (normDist <= 50) calculatedScore = 6;
+    else if (normDist <= 60) calculatedScore = 5;
+    else if (normDist <= 70) calculatedScore = 4;
+    else if (normDist <= 80) calculatedScore = 3;
+    else if (normDist <= 90) calculatedScore = 2;
+    else if (normDist <= 100) calculatedScore = 1;
+    
+    setClickCoord({
+      x: Math.round(normX),
+      y: Math.round(normY),
+      score: calculatedScore
+    });
+  };
+
+  const handleSavePostShot = () => {
+    if (!tempSessionData) return;
+    
+    const finalSession: ArcherySession = {
+      ...tempSessionData,
+      arrowNumber: currentArrowNumber,
+      distance: preferredDistance,
+      score: clickCoord ? clickCoord.score : 0,
+      arrowX: clickCoord ? clickCoord.x : 0,
+      arrowY: clickCoord ? clickCoord.y : 0
+    } as ArcherySession;
+    
+    addSession(finalSession);
+    
+    useErrorLog.getState().addLog(`Shot Saved: Arrow #${currentArrowNumber}, Score: ${finalSession.score} Points, Dist: ${preferredDistance}m`);
+    
+    // Reset state parameters
+    setTempSessionData(null);
+    setClickCoord(null);
+    setCurrentArrowNumber(currentArrowNumber + 1);
+    setAppState('active');
+  };
+
+  const handleDiscardPostShot = () => {
+    setTempSessionData(null);
+    setClickCoord(null);
+    setAppState('active');
+    useErrorLog.getState().addLog('Shot Discarded.');
+  };
+
   // Toggle manual recording start/stop
   const handleManualRecordToggle = () => {
     // If phone is pointed down, block start and show popup
@@ -249,11 +316,29 @@ function App() {
     }
 
     if (sensors.isRecording) {
+      const data = sensors.stopRecording();
+      const isVideo = camera.cameraActive && !isMockActive;
+      const tempData: Partial<ArcherySession> = {
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        type: isVideo ? 'video' : 'sensor',
+        duration: Math.round(data.length / 50) || 3,
+        avgVibration: Math.round(
+          data.reduce((acc, curr) => acc + curr.vibration, 0) / 
+          (data.length || 1)
+        ),
+        maxVibration: Math.max(...data.map((p) => p.vibration), 0),
+        sensorData: data,
+        videoUrl: null
+      };
+
+      setTempSessionData(tempData);
+
       if (camera.cameraActive) {
         camera.stopVideoRecording();
       }
-      const data = sensors.stopRecording();
-      saveCapturedSession(data);
+
+      setAppState('post_shot');
     } else {
       if (camera.cameraActive) {
         camera.startVideoRecording();
@@ -273,12 +358,9 @@ function App() {
     }
   }, [activeTab, isOnboarded, isMockActive, camera]);
 
-  // Show onboarding overlay if not yet accepted/skipped
-  const showOnboarding = !isOnboarded && sensors.permissionGranted === null;
-
   return (
     <>
-      {showOnboarding ? (
+      {appState === 'permissions' ? (
         <Onboarding
           isSupported={sensors.isSupported}
           permissionGranted={sensors.permissionGranted}
@@ -289,6 +371,218 @@ function App() {
           isMockActive={isMockActive}
           appVersion={appVersion}
         />
+      ) : appState === 'calibrating' ? (
+        <div className="scrollable" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80%', padding: '20px' }}>
+          <div className="glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
+            <h1 className="header-title" style={{ fontSize: '24px', marginBottom: '8px' }}>
+              🏹 Sensor Calibration Wizard
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5', marginBottom: '24px' }}>
+              Let's calibrate the auto-trigger angles before you start shooting.
+            </p>
+
+            {/* Down Position Card */}
+            <div className="glass-card" style={{
+              textAlign: 'left',
+              padding: '16px',
+              borderLeft: sensors.calibration.downPitch !== -65 ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
+              marginBottom: '14px'
+            }}>
+              <h3 style={{ fontSize: '15px', color: '#fff', marginBottom: '4px' }}>1. Bow Resting Position</h3>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                Point your bow down to the ground. (Current Pitch: <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong>)
+              </p>
+              <button
+                className="btn-secondary"
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px' }}
+                onClick={() => sensors.calibratePosition('DOWN')}
+              >
+                {sensors.calibration.downPitch !== -65 ? `✓ Resting Calibrated (${sensors.calibration.downPitch}°)` : "🏹 Set Resting Angle"}
+              </button>
+            </div>
+
+            {/* Aim Position Card */}
+            <div className="glass-card" style={{
+              textAlign: 'left',
+              padding: '16px',
+              borderLeft: sensors.calibration.aimPitch !== 0 ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
+              marginBottom: '24px'
+            }}>
+              <h3 style={{ fontSize: '15px', color: '#fff', marginBottom: '4px' }}>2. Bow Aiming Position</h3>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                Hold your bow straight up at a target. (Current Pitch: <strong style={{ color: 'var(--blue)' }}>{Math.round(currentPitch)}°</strong>)
+              </p>
+              <button
+                className="btn-secondary"
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px', borderColor: 'var(--gold)' }}
+                onClick={() => sensors.calibratePosition('AIM')}
+              >
+                {sensors.calibration.aimPitch !== 0 ? `✓ Aiming Calibrated (${sensors.calibration.aimPitch}°)` : "🎯 Set Aiming Angle"}
+              </button>
+            </div>
+
+            {/* Proceed button */}
+            <button
+              className="btn-primary"
+              style={{
+                width: '100%',
+                padding: '14px',
+                fontSize: '14px',
+                borderRadius: '12px',
+                background: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? 'linear-gradient(135deg, var(--steady), #2196f3)' : 'rgba(255,255,255,0.05)',
+                color: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? '#fff' : 'var(--text-secondary)',
+                boxShadow: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? '0 4px 15px rgba(46, 204, 113, 0.3)' : 'none',
+                cursor: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? 'pointer' : 'not-allowed'
+              }}
+              disabled={sensors.calibration.downPitch === -65 || sensors.calibration.aimPitch === 0}
+              onClick={() => {
+                setAppState('active');
+                setActiveTab('tracker');
+              }}
+            >
+              🚀 Finish Setup & Enter Dashboard
+            </button>
+          </div>
+        </div>
+      ) : appState === 'post_shot' ? (
+        <div className="scrollable" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '100%', padding: '16px', boxSizing: 'border-box', background: 'rgba(5, 5, 8, 0.98)' }}>
+          <div className="glass-panel" style={{ padding: '20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <h2 className="header-title" style={{ fontSize: '22px', marginBottom: '4px' }}>🎯 Record Arrow Release</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Tap the target face below to plot your arrow landing location.</p>
+            </div>
+
+            {/* Target Canvas Board */}
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
+              <div style={{ position: 'relative', background: 'rgba(0,0,0,0.5)', padding: '8px', borderRadius: '16px', border: '1px solid var(--border-glass)', boxShadow: '0 8px 30px rgba(0,0,0,0.6)' }}>
+                <svg
+                  width="220"
+                  height="220"
+                  viewBox="0 0 220 220"
+                  onClick={handleTargetClick}
+                  style={{ display: 'block', cursor: 'crosshair', pointerEvents: 'auto' }}
+                >
+                  {/* White rings */}
+                  <circle cx="110" cy="110" r="100" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                  <circle cx="110" cy="110" r="80" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                  {/* Black rings */}
+                  <circle cx="110" cy="110" r="64" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                  <circle cx="110" cy="110" r="48" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                  {/* Blue rings */}
+                  <circle cx="110" cy="110" r="36" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                  <circle cx="110" cy="110" r="26" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                  {/* Red rings */}
+                  <circle cx="110" cy="110" r="18" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                  <circle cx="110" cy="110" r="12" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                  {/* Gold rings */}
+                  <circle cx="110" cy="110" r="7" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                  <circle cx="110" cy="110" r="3.5" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                  {/* Center Cross */}
+                  <circle cx="110" cy="110" r="0.5" fill="#333" />
+                  
+                  {/* Clicked arrow marker */}
+                  {clickCoord && (
+                    <g>
+                      <circle cx={110 + clickCoord.x} cy={110 + clickCoord.y} r="8" fill="var(--steady)" opacity="0.6" className="pulsing" />
+                      <circle cx={110 + clickCoord.x} cy={110 + clickCoord.y} r="3.5" fill="#fff" stroke="var(--steady)" strokeWidth="1.5" />
+                    </g>
+                  )}
+                </svg>
+              </div>
+            </div>
+
+            {/* Score HUD display */}
+            <div style={{
+              background: clickCoord ? 'rgba(46, 204, 113, 0.1)' : 'rgba(255,255,255,0.02)',
+              border: clickCoord ? '1px solid rgba(46, 204, 113, 0.2)' : '1px solid var(--border-glass)',
+              borderRadius: '12px',
+              padding: '12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Current Arrow Score:</span>
+              <strong style={{ fontSize: '18px', color: clickCoord ? 'var(--steady)' : '#fff' }}>
+                {clickCoord ? `${clickCoord.score} Points ${clickCoord.score >= 9 ? '🎯' : ''}` : 'Select landing point'}
+              </strong>
+            </div>
+
+            {/* Selectors grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', textAlign: 'left' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Arrow Number</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={currentArrowNumber}
+                  onChange={(e) => setCurrentArrowNumber(parseInt(e.target.value) || 1)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    padding: '10px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Distance (Meters)</label>
+                <select
+                  value={preferredDistance}
+                  onChange={(e) => setPreferredDistance(parseInt(e.target.value) || 70)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    padding: '10px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {[18, 30, 50, 60, 70, 90].map((dist) => (
+                    <option key={dist} value={dist}>{dist}m</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+              <button
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  fontSize: '14px',
+                  borderRadius: '10px',
+                  background: clickCoord ? 'linear-gradient(135deg, var(--steady), #2ecc71)' : 'rgba(255,255,255,0.05)',
+                  color: clickCoord ? '#fff' : 'var(--text-secondary)',
+                  cursor: clickCoord ? 'pointer' : 'not-allowed',
+                  boxShadow: clickCoord ? '0 4px 15px rgba(46,204,113,0.3)' : 'none'
+                }}
+                disabled={!clickCoord}
+                onClick={handleSavePostShot}
+              >
+                💾 Save Arrow Release
+              </button>
+
+              <button
+                className="btn-secondary"
+                style={{ width: '100%', padding: '12px', fontSize: '13px', borderRadius: '10px', color: 'var(--unstable)', borderColor: 'rgba(255, 59, 48, 0.2)' }}
+                onClick={handleDiscardPostShot}
+              >
+                🗑️ Discard Shot
+              </button>
+            </div>
+
+          </div>
+        </div>
       ) : (
         <>
           {/* Viewport Render Area */}

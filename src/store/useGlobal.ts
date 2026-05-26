@@ -4,6 +4,7 @@ import { useErrorLog } from './useErrorLog';
 
 interface GlobalState {
   activeTab: 'tracker' | 'sessions' | 'calibration';
+  appState: 'permissions' | 'calibrating' | 'active' | 'post_shot';
   isOnboarded: boolean;
   isMockActive: boolean;
   mockPitch: number;
@@ -15,7 +16,13 @@ interface GlobalState {
   cameraResolution: 'low' | 'medium' | 'high';
   cameraFps: number; // 15 | 24 | 30 FPS
   
+  // Arrow and Distance Tracking Settings
+  currentArrowNumber: number;
+  preferredDistance: number; // in meters (default 70)
+  tempSessionData: Partial<ArcherySession> | null;
+  
   setActiveTab: (tab: GlobalState['activeTab']) => void;
+  setAppState: (state: GlobalState['appState']) => void;
   setIsOnboarded: (onboarded: boolean) => void;
   setIsMockActive: (active: boolean) => void;
   setMockPitch: (pitch: number) => void;
@@ -25,16 +32,24 @@ interface GlobalState {
   setCameraResolution: (res: GlobalState['cameraResolution']) => void;
   setCameraFps: (fps: number) => void;
   
+  setCurrentArrowNumber: (num: number) => void;
+  setPreferredDistance: (dist: number) => void;
+  setTempSessionData: (data: Partial<ArcherySession> | null) => void;
+  
   addSession: (session: ArcherySession) => void;
   deleteSession: (id: string) => void;
 }
 
 export const useGlobal = create<GlobalState>((set) => ({
   activeTab: 'tracker',
+  appState: 'permissions',
   isOnboarded: false,
   isMockActive: false,
   mockPitch: -60,
   mockVibration: 5,
+  currentArrowNumber: 1,
+  preferredDistance: 70,
+  tempSessionData: null,
   
   sensorRefreshRate: (() => {
     try {
@@ -75,9 +90,15 @@ export const useGlobal = create<GlobalState>((set) => ({
   
   setActiveTab: (activeTab) => set({ activeTab }),
   
+  setAppState: (appState) => {
+    useErrorLog.getState().addLog(`State machine transition to: ${appState.toUpperCase()}`);
+    set({ appState });
+  },
+  
   setIsOnboarded: (isOnboarded) => {
     useErrorLog.getState().addLog(`Onboarding status changed to: ${isOnboarded}`);
-    set({ isOnboarded });
+    const nextState = isOnboarded ? 'calibrating' : 'permissions';
+    set({ isOnboarded, appState: nextState });
   },
   
   setIsMockActive: (isMockActive) => {
@@ -117,6 +138,10 @@ export const useGlobal = create<GlobalState>((set) => ({
     }
     set({ cameraFps });
   },
+  
+  setCurrentArrowNumber: (currentArrowNumber) => set({ currentArrowNumber }),
+  setPreferredDistance: (preferredDistance) => set({ preferredDistance }),
+  setTempSessionData: (tempSessionData) => set({ tempSessionData }),
   
   addSession: (session) => {
     useErrorLog.getState().addLog(`Saving new session: ${session.type} Mode, stability: ${100 - session.avgVibration}%`);
