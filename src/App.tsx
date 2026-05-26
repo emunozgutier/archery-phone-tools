@@ -254,16 +254,6 @@ function App() {
   const currentHeading = isMockActive ? 184 : sensors.orientation.heading;
   const currentVibration = isMockActive ? mockVibration : sensors.vibrationIndex;
 
-  // Mock or physical gravity vector components (representing axis pull)
-  const displayGravity = isMockActive ? {
-    x: 0.00,
-    y: Math.round(Math.cos((mockPitch * Math.PI) / 180) * 9.81 * 100) / 100,
-    z: Math.round(Math.sin((mockPitch * Math.PI) / 180) * 9.81 * 100) / 100
-  } : {
-    x: sensors.rawAccel?.x || 0,
-    y: sensors.rawAccel?.y || 0,
-    z: sensors.rawAccel?.z || 0
-  };
 
   // Click handler for interactive FITA target face
   const handleTargetClick = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
@@ -442,11 +432,11 @@ function App() {
                 justifyContent: 'space-between',
                 border: '1px solid rgba(255,255,255,0.03)'
               }}>
-                <span>Gravity Vector (g):</span>
+                <span>X, Y, Z Axis Angles:</span>
                 <span style={{ display: 'flex', gap: '8px' }}>
-                  <span>X: <strong style={{ color: '#fff' }}>{displayGravity.x.toFixed(2)}</strong></span>
-                  <span>Y: <strong style={{ color: '#fff' }}>{displayGravity.y.toFixed(2)}</strong></span>
-                  <span>Z: <strong style={{ color: '#fff' }}>{displayGravity.z.toFixed(2)}</strong></span>
+                  <span>X (Pitch): <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong></span>
+                  <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong></span>
+                  <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
                 </span>
               </div>
 
@@ -483,11 +473,11 @@ function App() {
                 justifyContent: 'space-between',
                 border: '1px solid rgba(255,255,255,0.03)'
               }}>
-                <span>Gravity Vector (g):</span>
+                <span>X, Y, Z Axis Angles:</span>
                 <span style={{ display: 'flex', gap: '8px' }}>
-                  <span>X: <strong style={{ color: '#fff' }}>{displayGravity.x.toFixed(2)}</strong></span>
-                  <span>Y: <strong style={{ color: '#fff' }}>{displayGravity.y.toFixed(2)}</strong></span>
-                  <span>Z: <strong style={{ color: '#fff' }}>{displayGravity.z.toFixed(2)}</strong></span>
+                  <span>X (Pitch): <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong></span>
+                  <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong></span>
+                  <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
                 </span>
               </div>
 
@@ -858,10 +848,10 @@ function App() {
                       textAlign: 'right',
                       border: '1px solid rgba(255,255,255,0.03)'
                     }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', textAlign: 'right' }}>ACCEL GRAVITY (g)</span>
-                      <span>X: <strong style={{ color: '#fff' }}>{displayGravity.x.toFixed(2)}</strong> </span>
-                      <span>Y: <strong style={{ color: '#fff' }}>{displayGravity.y.toFixed(2)}</strong> </span>
-                      <span>Z: <strong style={{ color: '#fff' }}>{displayGravity.z.toFixed(2)}</strong></span>
+                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', textAlign: 'right' }}>X, Y, Z ROTATION ANGLES</span>
+                      <span>X (Pitch): <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong> </span>
+                      <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong> </span>
+                      <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
                     </div>
                   </div>
 
