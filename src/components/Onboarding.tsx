@@ -8,6 +8,7 @@ interface OnboardingProps {
   onRequestCamera: () => Promise<MediaStream | null>;
   onMockSetup: () => void;
   isMockActive: boolean;
+  appVersion: { version: string; dateTime: string } | null;
 }
 
 export const Onboarding: React.FC<OnboardingProps> = ({
@@ -17,7 +18,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({
   cameraActive,
   onRequestCamera,
   onMockSetup,
-  isMockActive
+  isMockActive,
+  appVersion
 }) => {
   const [loading, setLoading] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
@@ -151,6 +153,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({
             {isMockActive ? "🚀 Simulator Active - Enter Dashboard" : "💻 Use Desktop Archery Simulator"}
           </button>
         </div>
+
+        {appVersion && (
+          <div style={{ marginTop: '24px', opacity: 0.5, fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            Version: {appVersion.version} | Shipped: {appVersion.dateTime}
+          </div>
+        )}
       </div>
     </div>
   );

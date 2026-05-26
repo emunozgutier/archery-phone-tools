@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSensors } from './hooks/useSensors';
 import type { SensorDataPoint } from './hooks/useSensors';
 import type { ArcherySession } from './components/SessionLibrary';
@@ -38,6 +38,19 @@ function App() {
 
   const { logs, clearLogs } = useErrorLog();
   const mockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [appVersion, setAppVersion] = useState<{ version: string; dateTime: string } | null>(null);
+
+  useEffect(() => {
+    fetch('./version.json')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.version) {
+          setAppVersion({ version: data.version, dateTime: data.dateTime });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync state fallback when saving a sensor-only session (no video compiled callback)
   const saveCapturedSession = useCallback((sensorPoints: SensorDataPoint[]) => {
@@ -252,6 +265,7 @@ function App() {
           onRequestCamera={camera.startCamera}
           onMockSetup={handleToggleMock}
           isMockActive={isMockActive}
+          appVersion={appVersion}
         />
       ) : (
         <>
@@ -701,6 +715,16 @@ function App() {
                       })
                     )}
                   </div>
+                </div>
+
+                {/* Subtle, premium version footer */}
+                <div style={{ textAlign: 'center', marginTop: '24px', paddingBottom: '16px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  <span>Archery Telemetry v{appVersion?.version || '2026.22.3'}</span>
+                  {appVersion?.dateTime && (
+                    <span style={{ display: 'block', fontSize: '9px', marginTop: '4px', opacity: 0.5 }}>
+                      Build Time: {appVersion.dateTime}
+                    </span>
+                  )}
                 </div>
                 
               </div>
