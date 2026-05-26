@@ -5,7 +5,6 @@ import {
   latestOrientationRef,
   latestVibrationRef,
   rollingBufferRef,
-  recordingBufferRef,
   triggerHapticSingle,
   triggerHapticDouble,
   triggerHapticPulseShort
@@ -49,9 +48,9 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     addLog("Motion sensor listeners registering...");
 
     // Ref-based state variables to prevent closures from holding stale values
-    const triggerStateRef = { current: store.triggerState };
-    const calibrationRef = { current: store.calibration };
-    const isRecordingRef = { current: store.isRecording };
+    const triggerStateRef = { current: useSensorsStore.getState().triggerState };
+    const calibrationRef = { current: useSensorsStore.getState().calibration };
+    const isRecordingRef = { current: useSensorsStore.getState().isRecording };
     const lastDownTimeRef = { current: 0 };
 
     // Keep trigger values synced in refs for high-frequency access

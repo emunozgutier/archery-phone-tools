@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useSensors } from './hooks/useSensors';
 import type { SensorDataPoint } from './hooks/useSensors';
 import type { ArcherySession } from './components/SessionLibrary';
@@ -7,32 +7,31 @@ import { Onboarding } from './components/Onboarding';
 import { SensorChart } from './components/SensorChart';
 import { HUDOverlay } from './components/HUDOverlay';
 import { SessionLibrary } from './components/SessionLibrary';
+import { useGlobal } from './store/useGlobal';
+import { useErrorLog } from './store/useErrorLog';
+import { useSensorsStore } from './store/useSensors';
 import './App.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'tracker' | 'recorder' | 'sessions' | 'calibration'>('tracker');
-  const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
-  const [isMockActive, setIsMockActive] = useState<boolean>(false);
-  
-  // Custom mock state for desktop simulation
-  const [mockPitch, setMockPitch] = useState<number>(-60);
-  const [mockVibration, setMockVibration] = useState<number>(5);
+  // Global Zustand Stores
+  const {
+    activeTab,
+    setActiveTab,
+    isOnboarded,
+    setIsOnboarded,
+    isMockActive,
+    setIsMockActive,
+    mockPitch,
+    setMockPitch,
+    mockVibration,
+    setMockVibration,
+    sessions,
+    addSession,
+    deleteSession
+  } = useGlobal();
+
+  const { logs, clearLogs } = useErrorLog();
   const mockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Synced session storage
-  const [sessions, setSessions] = useState<ArcherySession[]>(() => {
-    const saved = localStorage.getItem('archery_sessions');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Save sessions to local storage (supports functional updates to avoid dependency cycles)
-  const saveSessions = useCallback((updated: ArcherySession[] | ((prev: ArcherySession[]) => ArcherySession[])) => {
-    setSessions(prev => {
-      const next = typeof updated === 'function' ? updated(prev) : updated;
-      localStorage.setItem('archery_sessions', JSON.stringify(next));
-      return next;
-    });
-  }, []);
 
   // Sync state fallback when saving a sensor-only session (no video compiled callback)
   const saveCapturedSession = useCallback((sensorPoints: SensorDataPoint[]) => {
@@ -46,13 +45,13 @@ function App() {
           sensorPoints.reduce((acc, curr) => acc + curr.vibration, 0) / 
           sensorPoints.length
         ),
-        maxVibration: Math.max(...sensorPoints.map(p => p.vibration)),
+        maxVibration: Math.max(...sensorPoints.map((p) => p.vibration)),
         sensorData: sensorPoints
       };
 
-      saveSessions((prev: ArcherySession[]) => [newSession, ...prev]);
+      addSession(newSession);
     }
-  }, [activeTab, saveSessions]);
+  }, [activeTab, addSession]);
 
   // Hoisted callback refs to avoid access-before-declaration and hoisting lint errors in useSensors hook
   const autoRecordStartRef = useRef<() => void>(() => {});
@@ -87,6 +86,7 @@ function App() {
       }, 400); // Allow brief latency to compile final video blob
     };
   }, [camera, sensors, activeTab, saveCapturedSession]);
+
   // Watch for compilation of recorded video to pair and save with sensor data
   useEffect(() => {
     if (camera.recordedVideoUrl && sensors.sensorHistory.length > 0) {
@@ -103,28 +103,26 @@ function App() {
           historyCopy.reduce((acc, curr) => acc + curr.vibration, 0) / 
           historyCopy.length
         ),
-        maxVibration: Math.max(...historyCopy.map(p => p.vibration)),
+        maxVibration: Math.max(...historyCopy.map((p) => p.vibration)),
         sensorData: historyCopy,
         videoUrl: isVideo ? videoUrlCopy : null
       };
 
       // Safely defer state updates out of effect body to avoid render cascade
       setTimeout(() => {
-        saveSessions((prev: ArcherySession[]) => [newSession, ...prev]);
+        addSession(newSession);
         camera.resetVideo();
       }, 0);
     }
-  }, [camera, sensors.sensorHistory, activeTab, saveSessions]);
+  }, [camera, sensors.sensorHistory, activeTab, addSession]);
 
   // Toggle sensor simulation
   const handleToggleMock = () => {
-    setIsMockActive(prev => {
-      const next = !prev;
-      if (next) {
-        setIsOnboarded(true);
-      }
-      return next;
-    });
+    const nextMock = !isMockActive;
+    setIsMockActive(nextMock);
+    if (nextMock) {
+      setIsOnboarded(true);
+    }
   };
 
   // Run mock pitch draw simulator (Bow down -> lift -> aiming hold)
@@ -133,7 +131,7 @@ function App() {
     
     // Set bow pointing straight down
     setMockPitch(-65);
-    sensors.setTriggerState('ARMED');
+    useSensorsStore.getState().setTriggerState('ARMED');
     
     let currentP = -65;
     const targetP = sensors.calibration.aimPitch;
@@ -148,7 +146,7 @@ function App() {
       } else {
         if (mockIntervalRef.current) clearInterval(mockIntervalRef.current as unknown as number);
         setMockPitch(targetP);
-        sensors.setTriggerState('AIMING');
+        useSensorsStore.getState().setTriggerState('AIMING');
         
         // Start simulated auto-recording
         sensors.startRecording();
@@ -160,7 +158,7 @@ function App() {
         setTimeout(() => {
           // Bow returns down
           setMockPitch(-65);
-          sensors.setTriggerState('ARMED');
+          useSensorsStore.getState().setTriggerState('ARMED');
           
           // Stop simulated recording and compile session
           const mockData = generateMockSensorLog();
@@ -178,7 +176,7 @@ function App() {
               sensorData: mockData,
               videoUrl: activeTab === 'recorder' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null // generic placeholder video for desktop simulator
             };
-            saveSessions([newSession, ...sessions]);
+            addSession(newSession);
           }, 500);
 
         }, 6000);
@@ -199,11 +197,6 @@ function App() {
       });
     }
     return log;
-  };
-
-  const handleDeleteSession = (id: string) => {
-    const updated = sessions.filter(s => s.id !== id);
-    saveSessions(updated);
   };
 
   // Master Orientation readings (Mock overrides vs physical)
@@ -403,7 +396,7 @@ function App() {
 
             {/* Tab 3: Session Library View */}
             {activeTab === 'sessions' && (
-              <SessionLibrary sessions={sessions} onDeleteSession={handleDeleteSession} />
+              <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} />
             )}
 
             {/* Tab 4: Calibration View */}
@@ -452,7 +445,7 @@ function App() {
                       min="5"
                       max="30"
                       value={sensors.calibration.pitchTolerance}
-                      onChange={(e) => sensors.setCalibration(prev => ({ ...prev, pitchTolerance: parseInt(e.target.value) }))}
+                      onChange={(e) => sensors.setCalibration({ pitchTolerance: parseInt(e.target.value) })}
                       style={{ width: '100%' }}
                     />
                   </div>
@@ -495,10 +488,10 @@ function App() {
                             // Manually simulate trigger checks
                             const p = parseInt(e.target.value);
                             if (Math.abs(p - sensors.calibration.downPitch) < sensors.calibration.pitchTolerance) {
-                              sensors.setTriggerState('ARMED');
+                              useSensorsStore.getState().setTriggerState('ARMED');
                             } else if (Math.abs(p - sensors.calibration.aimPitch) < sensors.calibration.pitchTolerance) {
                               if (sensors.triggerState === 'ARMED') {
-                                sensors.setTriggerState('AIMING');
+                                useSensorsStore.getState().setTriggerState('AIMING');
                                 autoRecordStartRef.current();
                               }
                             }
@@ -523,6 +516,60 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                {/* Real-time Diagnostics Log Panel for iOS Debugging */}
+                <div className="glass-panel" style={{ marginTop: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ color: '#fff', fontSize: '15px' }}>📱 iOS System Diagnostics</h3>
+                    <button
+                      className="btn-secondary"
+                      style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '4px', height: 'auto' }}
+                      onClick={clearLogs}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  
+                  <div style={{
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid var(--border-glass)',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    fontSize: '10px',
+                    fontFamily: 'var(--mono)',
+                    textAlign: 'left',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}>
+                    {logs.length === 0 ? (
+                      <span style={{ color: 'var(--text-secondary)' }}>No entries yet.</span>
+                    ) : (
+                      logs.map((log) => {
+                        let color = 'var(--text-secondary)';
+                        if (log.level === 'error') color = 'var(--unstable)';
+                        else if (log.level === 'warn') color = 'var(--tremor)';
+                        else if (log.level === 'sensor') color = 'var(--gold)';
+                        
+                        return (
+                          <div key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '4px' }}>
+                            <span style={{ color: 'rgba(255,255,255,0.3)', marginRight: '6px' }}>
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour12: false })}
+                            </span>
+                            <span style={{ color }}>{log.message}</span>
+                            {log.details && (
+                              <pre style={{ margin: '2px 0 0 10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                                {log.details}
+                              </pre>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
                 
               </div>
             )}
@@ -646,4 +693,4 @@ function App() {
   )
 }
 
-export default App
+export default App;
