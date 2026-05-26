@@ -281,6 +281,7 @@ function App() {
                       triggerState={sensors.triggerState}
                       isRecording={sensors.isRecording}
                       calibration={sensors.calibration}
+                      onStopRecording={handleManualRecordToggle}
                     />
 
                     {/* Standard HUD Background container */}
@@ -319,6 +320,7 @@ function App() {
                   triggerState={sensors.triggerState}
                   isRecording={sensors.isRecording || camera.isRecordingVideo}
                   calibration={sensors.calibration}
+                  onStopRecording={handleManualRecordToggle}
                 />
 
                 {/* Back Camera Live Stream */}

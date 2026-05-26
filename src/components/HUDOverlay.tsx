@@ -8,6 +8,7 @@ interface HUDOverlayProps {
   triggerState: 'IDLE' | 'ARMED' | 'AIMING';
   isRecording: boolean;
   calibration: { downPitch: number; aimPitch: number; pitchTolerance: number };
+  onStopRecording?: () => void;
 }
 
 export const HUDOverlay: React.FC<HUDOverlayProps> = ({
@@ -17,7 +18,8 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   vibration,
   triggerState,
   isRecording,
-  calibration
+  calibration,
+  onStopRecording
 }) => {
   const [recordSeconds, setRecordSeconds] = useState(0);
 
@@ -261,6 +263,35 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
         flexDirection: 'column',
         gap: '8px'
       }}>
+        {isRecording && onStopRecording && (
+          <button
+            onClick={onStopRecording}
+            style={{
+              pointerEvents: 'auto',
+              alignSelf: 'center',
+              background: 'rgba(255, 59, 48, 0.25)',
+              border: '1px solid var(--unstable)',
+              color: '#fff',
+              padding: '10px 20px',
+              borderRadius: '24px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(255, 59, 48, 0.4)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              margin: '4px 0',
+              transition: 'transform 0.1s ease-out'
+            }}
+          >
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--unstable)' }} className="blinking" />
+            <span>Stop Recording</span>
+          </button>
+        )}
+
         {/* Dual Axis Balance Check Card */}
         <div className="glass-card" style={{
           margin: 0,
