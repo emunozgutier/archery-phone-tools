@@ -53,7 +53,7 @@ export const useCameraRecorderStore = create<CameraRecorderState>((set, get) => 
           height: { ideal: idealHeight },
           frameRate: { ideal: cameraFps }
         },
-        audio: true
+        audio: false
       };
       
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -65,7 +65,7 @@ export const useCameraRecorderStore = create<CameraRecorderState>((set, get) => 
       try {
         const fallbackStream = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: true
+          audio: false
         });
         set({ stream: fallbackStream, cameraActive: true });
         useErrorLog.getState().addLog('Camera feed active: fallback default lens.');

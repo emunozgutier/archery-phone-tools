@@ -115,7 +115,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h3 style={{ fontSize: '15px', color: '#fff' }}>2. Back Camera & Mic</h3>
+              <h3 style={{ fontSize: '15px', color: '#fff' }}>2. Back Camera Feed</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 Used to overlay HUD aiming stats on top of live targeting feed.
               </p>
