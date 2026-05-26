@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 import subprocess
 import time
+import sys
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +16,36 @@ def main():
     # Ensure public dir exists
     os.makedirs(public_dir, exist_ok=True)
     
+    # Check if we should skip the version bump because no new changes occurred (npm run deploy twice in a row)
+    last_commit_msg = ""
+    try:
+        log_proc = subprocess.run(["git", "log", "-n", "1", "--format=%s"], capture_output=True, text=True, check=True)
+        last_commit_msg = log_proc.stdout.strip()
+    except Exception as e:
+        print(f"Warning: Git log check failed: {e}")
+        
+    modified_files = []
+    try:
+        status_proc = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
+        for line in status_proc.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split(None, 1)
+            if len(parts) == 2:
+                status_code, filepath = parts[0], parts[1]
+                filepath = os.path.normpath(filepath)
+                # Ignore public/version.json and package.json modifications
+                if not (filepath.endswith('version.json') or filepath.endswith('package.json')):
+                    modified_files.append(filepath)
+    except Exception as e:
+        print(f"Warning: Git status check failed: {e}")
+
+    if last_commit_msg.startswith("chore: release v") and len(modified_files) == 0:
+        print("No new functional commits or local code changes detected since last release.")
+        print("Skipping version increment and Git push (Vite production build will still proceed).")
+        sys.exit(0)
+        
     # 1. Determine the current Year and ISO Week Number
     now = datetime.now()
     current_year = str(now.year)
