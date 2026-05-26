@@ -21,11 +21,13 @@ export interface ArcherySession {
 interface SessionLibraryProps {
   sessions: ArcherySession[];
   onDeleteSession: (id: string) => void;
+  onClearSessions: () => void;
 }
 
 export const SessionLibrary: React.FC<SessionLibraryProps> = ({
   sessions,
-  onDeleteSession
+  onDeleteSession,
+  onClearSessions
 }) => {
   const [selectedSession, setSelectedSession] = useState<ArcherySession | null>(null);
 
@@ -58,9 +60,36 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
 
   return (
     <div className="scrollable">
-      <div style={{ marginBottom: '20px' }}>
-        <h2 className="header-title">Session History</h2>
-        <p className="subtitle">Review your aim stability and video recordings.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ textAlign: 'left' }}>
+          <h2 className="header-title">Session History</h2>
+          <p className="subtitle">Review your aim stability and video recordings.</p>
+        </div>
+        {sessions.length > 0 && (
+          <button
+            className="btn-secondary"
+            style={{
+              padding: '6px 12px',
+              fontSize: '11px',
+              borderRadius: '20px',
+              color: 'var(--unstable)',
+              borderColor: 'rgba(255, 59, 48, 0.2)',
+              background: 'rgba(255, 59, 48, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              height: 'auto',
+              cursor: 'pointer'
+            }}
+            onClick={() => {
+              if (window.confirm("Are you sure you want to clear all recorded sessions? This action cannot be undone.")) {
+                onClearSessions();
+              }
+            }}
+          >
+            🗑️ Clear All
+          </button>
+        )}
       </div>
 
       {sessions.length === 0 ? (

@@ -28,6 +28,7 @@ function App() {
     sessions,
     addSession,
     deleteSession,
+    clearSessions,
     sensorRefreshRate,
     setSensorRefreshRate,
     cameraResolution,
@@ -757,7 +758,7 @@ function App() {
 
             {/* Tab 3: Session Library View */}
             {activeTab === 'sessions' && (
-              <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} />
+              <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} onClearSessions={clearSessions} />
             )}
 
             {/* Tab 4: Calibration View */}

@@ -40,6 +40,7 @@ interface GlobalState {
   
   addSession: (session: ArcherySession) => void;
   deleteSession: (id: string) => void;
+  clearSessions: () => void;
 }
 
 export const useGlobal = create<GlobalState>((set) => ({
@@ -186,5 +187,15 @@ export const useGlobal = create<GlobalState>((set) => ({
       }
       return { sessions: updated };
     });
+  },
+  
+  clearSessions: () => {
+    useErrorLog.getState().addLog('Clearing all saved sessions...');
+    try {
+      localStorage.removeItem('archery_sessions');
+    } catch (e) {
+      useErrorLog.getState().addLog('Failed to clear sessions from localStorage', 'error', String(e));
+    }
+    set({ sessions: [] });
   }
 }));
