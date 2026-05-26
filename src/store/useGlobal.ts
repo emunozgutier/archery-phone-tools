@@ -3,7 +3,7 @@ import type { ArcherySession } from '../components/SessionLibrary';
 import { useErrorLog } from './useErrorLog';
 
 interface GlobalState {
-  activeTab: 'tracker' | 'recorder' | 'sessions' | 'calibration';
+  activeTab: 'tracker' | 'sessions' | 'calibration';
   isOnboarded: boolean;
   isMockActive: boolean;
   mockPitch: number;

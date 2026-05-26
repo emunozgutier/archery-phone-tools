@@ -1,6 +1,8 @@
 import os
 import json
 from datetime import datetime
+import subprocess
+import time
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -89,6 +91,24 @@ def main():
             print(f"Successfully updated package.json to v{new_version}")
         except Exception as e:
             print(f"Warning: Failed to write to package.json: {e}")
+
+    # 6. Automate Git Commit & Push
+    try:
+        print("Git: Staging version files...")
+        subprocess.run(["git", "add", version_file, package_file], check=True)
+        
+        commit_message = f"chore: release v{new_version}"
+        print(f"Git: Committing version bump '{commit_message}'...")
+        subprocess.run(["git", "commit", "-m", commit_message], check=True)
+        
+        print("Git: Pushing bump to GitHub...")
+        subprocess.run(["git", "push"], check=True)
+        
+        print("Git: Waiting a second for synchronizations...")
+        time.sleep(1.5)
+        print("Git: Complete.")
+    except Exception as e:
+        print(f"Warning: Git auto-commit skipped/failed: {e}")
 
 if __name__ == '__main__':
     main()

@@ -40,6 +40,7 @@ function App() {
   const mockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [appVersion, setAppVersion] = useState<{ version: string; dateTime: string } | null>(null);
+  const [showDownWarning, setShowDownWarning] = useState<'stopped' | 'blocked' | null>(null);
 
   useEffect(() => {
     fetch('./version.json')
@@ -52,9 +53,33 @@ function App() {
       .catch(() => {});
   }, []);
 
+  // Auto-dismiss the bow-down warning popup after 4 seconds
+  useEffect(() => {
+    if (showDownWarning) {
+      const timer = setTimeout(() => {
+        setShowDownWarning(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showDownWarning]);
+
+  // Hook initializations
+  const camera = useCameraRecorder();
+
+  // Hoisted callback refs to avoid access-before-declaration and hoisting lint errors in useSensors hook
+  const autoRecordStartRef = useRef<() => void>(() => {});
+  const autoRecordStopRef = useRef<() => void>(() => {});
+
+  // Hook initializations (sensors depends on callback refs)
+  const sensors = useSensors(
+    () => autoRecordStartRef.current(),
+    () => autoRecordStopRef.current()
+  );
+
   // Sync state fallback when saving a sensor-only session (no video compiled callback)
   const saveCapturedSession = useCallback((sensorPoints: SensorDataPoint[]) => {
-    if (activeTab === 'tracker' && sensorPoints.length > 0) {
+    const isCameraRunning = camera.cameraActive && !isMockActive;
+    if (activeTab === 'tracker' && sensorPoints.length > 0 && !isCameraRunning) {
       const newSession: ArcherySession = {
         id: Date.now().toString(),
         timestamp: Date.now(),
@@ -70,23 +95,12 @@ function App() {
 
       addSession(newSession);
     }
-  }, [activeTab, addSession]);
-
-  // Hoisted callback refs to avoid access-before-declaration and hoisting lint errors in useSensors hook
-  const autoRecordStartRef = useRef<() => void>(() => {});
-  const autoRecordStopRef = useRef<() => void>(() => {});
-
-  // Hook initializations
-  const sensors = useSensors(
-    () => autoRecordStartRef.current(),
-    () => autoRecordStopRef.current()
-  );
-  const camera = useCameraRecorder();
+  }, [activeTab, addSession, camera.cameraActive, isMockActive]);
 
   // Sync hoisted callback refs inside an effect body to keep the render phase pure and compliant with React 19 ref assignment rules
   useEffect(() => {
     autoRecordStartRef.current = () => {
-      if (activeTab === 'recorder') {
+      if (activeTab === 'tracker' && camera.cameraActive) {
         camera.startVideoRecording();
       }
       sensors.startRecording();
@@ -96,6 +110,7 @@ function App() {
       let capturedSensorPoints: SensorDataPoint[] = [];
       if (sensors.isRecording) {
         capturedSensorPoints = sensors.stopRecording();
+        setShowDownWarning('stopped');
       }
       if (camera.isRecordingVideo) {
         camera.stopVideoRecording();
@@ -109,7 +124,7 @@ function App() {
   // Watch for compilation of recorded video to pair and save with sensor data
   useEffect(() => {
     if (camera.recordedVideoUrl && sensors.sensorHistory.length > 0) {
-      const isVideo = activeTab === 'recorder';
+      const isVideo = activeTab === 'tracker';
       const historyCopy = [...sensors.sensorHistory];
       const videoUrlCopy = camera.recordedVideoUrl;
       
@@ -169,7 +184,7 @@ function App() {
         
         // Start simulated auto-recording
         sensors.startRecording();
-        if (activeTab === 'recorder') {
+        if (activeTab === 'tracker') {
           camera.startVideoRecording();
         }
         
@@ -188,12 +203,12 @@ function App() {
             const newSession: ArcherySession = {
               id: Date.now().toString(),
               timestamp: Date.now(),
-              type: activeTab === 'recorder' ? 'video' : 'sensor',
+              type: activeTab === 'tracker' ? 'video' : 'sensor',
               duration: 6,
               avgVibration: 12,
               maxVibration: 32,
               sensorData: mockData,
-              videoUrl: activeTab === 'recorder' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null // generic placeholder video for desktop simulator
+              videoUrl: activeTab === 'tracker' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null // generic placeholder video for desktop simulator
             };
             addSession(newSession);
           }, 500);
@@ -226,14 +241,21 @@ function App() {
 
   // Toggle manual recording start/stop
   const handleManualRecordToggle = () => {
+    // If phone is pointed down, block start and show popup
+    if (!sensors.isRecording && currentPitch < -35) {
+      setShowDownWarning('blocked');
+      useErrorLog.getState().addLog('Blocked recording start: phone is pointed down', 'warn');
+      return;
+    }
+
     if (sensors.isRecording) {
-      if (activeTab === 'recorder') {
+      if (camera.cameraActive) {
         camera.stopVideoRecording();
       }
       const data = sensors.stopRecording();
       saveCapturedSession(data);
     } else {
-      if (activeTab === 'recorder') {
+      if (camera.cameraActive) {
         camera.startVideoRecording();
       }
       sensors.startRecording();
@@ -243,7 +265,7 @@ function App() {
   // Manage camera lifecycles based on tab states
   useEffect(() => {
     if (isOnboarded && !isMockActive) {
-      if (activeTab === 'recorder') {
+      if (activeTab === 'tracker') {
         camera.startCamera();
       } else {
         camera.stopCamera();
@@ -272,145 +294,124 @@ function App() {
           {/* Viewport Render Area */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             
-            {/* Tab 1: Tracker View (Sensor Mode) */}
+            {/* Tab 1: Tracker & Recorder Unified View */}
             {activeTab === 'tracker' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px' }}>
-                <div style={{ marginBottom: '16px' }}>
-                  <h2 className="header-title">Aim stability</h2>
-                  <p className="subtitle">Real-time vibration and dual-axis target levels.</p>
-                </div>
-
-                {/* Main Visualizer viewport */}
-                <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+                
+                {/* Main Viewport: Live Camera Feed & Interactive reticle */}
+                <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '320px' }}>
                   
-                  {/* Canvas telemetry card */}
-                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '300px' }}>
-                    
-                    {/* Live overlay Hud */}
-                    <HUDOverlay
-                      pitch={currentPitch}
-                      roll={currentRoll}
-                      heading={currentHeading}
-                      vibration={currentVibration}
-                      triggerState={sensors.triggerState}
-                      isRecording={sensors.isRecording}
-                      calibration={sensors.calibration}
-                      onStopRecording={handleManualRecordToggle}
-                    />
+                  {/* Live overlay HUD */}
+                  <HUDOverlay
+                    pitch={currentPitch}
+                    roll={currentRoll}
+                    heading={currentHeading}
+                    vibration={currentVibration}
+                    triggerState={sensors.triggerState}
+                    isRecording={sensors.isRecording || camera.isRecordingVideo}
+                    calibration={sensors.calibration}
+                    onStopRecording={handleManualRecordToggle}
+                  />
 
-                    {/* Standard HUD Background container */}
+                  {/* Back Camera Live Stream or Simulated Mock Background */}
+                  {isMockActive ? (
                     <div style={{
                       width: '100%',
                       height: '100%',
-                      background: 'radial-gradient(circle, rgba(26,26,36,0.3) 10%, #0a0b10 80%)',
-                      borderRadius: 'var(--border-radius-lg)',
-                      border: '1px solid var(--border-glass)',
+                      background: 'radial-gradient(circle, #1a1a24 20%, #0a0b10 90%)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-secondary)',
                       position: 'absolute',
                       top: 0,
                       left: 0
-                    }} />
-
-                  </div>
-
-                </div>
-
-                {/* Bottom sensor timelines */}
-                <div style={{ marginTop: '16px' }}>
-                  <SensorChart rollingBufferRef={sensors.rollingBufferRef} height={120} showVibrationOnly={true} />
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Recorder View (Camera HUD Mode) */}
-            {activeTab === 'recorder' && (
-              <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                
-                {/* HUD overlaid directly on top of camera component */}
-                <HUDOverlay
-                  pitch={currentPitch}
-                  roll={currentRoll}
-                  heading={currentHeading}
-                  vibration={currentVibration}
-                  triggerState={sensors.triggerState}
-                  isRecording={sensors.isRecording || camera.isRecordingVideo}
-                  calibration={sensors.calibration}
-                  onStopRecording={handleManualRecordToggle}
-                />
-
-                {/* Back Camera Live Stream */}
-                {isMockActive ? (
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    background: '#16171d',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    <span style={{ fontSize: '32px' }}>📷</span>
-                    <span style={{ fontSize: '13px', marginTop: '10px' }}>Simulated Environment Camera Feed</span>
-                  </div>
-                ) : camera.stream ? (
-                  <video
-                    ref={(el) => {
-                      if (el && camera.stream) el.srcObject = camera.stream;
-                    }}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
+                    }}>
+                      <span style={{ fontSize: '32px' }}>📷</span>
+                      <span style={{ fontSize: '13px', marginTop: '10px', opacity: 0.6 }}>Simulated Target Camera Feed</span>
+                    </div>
+                  ) : camera.stream ? (
+                    <video
+                      ref={(el) => {
+                        if (el && camera.stream) el.srcObject = camera.stream;
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        zIndex: 1
+                      }}
+                    />
+                  ) : (
+                    <div style={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
+                      background: '#0a0b10',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-secondary)',
+                      padding: '20px',
+                      textAlign: 'center',
                       position: 'absolute',
                       top: 0,
-                      left: 0,
-                      zIndex: 1
-                    }}
-                  />
-                ) : (
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    background: '#000',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--text-secondary)',
-                    padding: '20px',
-                    textAlign: 'center'
-                  }}>
-                    <span>Camera is loading...</span>
-                    {camera.cameraError && <p style={{ color: 'var(--unstable)', fontSize: '12px', marginTop: '10px' }}>{camera.cameraError}</p>}
-                  </div>
-                )}
+                      left: 0
+                    }}>
+                      <span>Camera is loading...</span>
+                      {camera.cameraError && <p style={{ color: 'var(--unstable)', fontSize: '12px', marginTop: '10px' }}>{camera.cameraError}</p>}
+                    </div>
+                  )}
 
-                {/* Bottom trigger settings and manual buttons on top of stream */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '16px',
-                  left: '16px',
-                  right: '16px',
-                  zIndex: 11,
-                  pointerEvents: 'auto'
-                }}>
-                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                    <button
-                      className={sensors.isRecording ? "btn-accent" : "btn-primary"}
-                      style={{
-                        padding: '12px 24px',
-                        fontSize: '14px',
-                        borderRadius: '30px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.5)'
-                      }}
-                      onClick={handleManualRecordToggle}
-                    >
-                      {sensors.isRecording ? "🛑 Stop Recording" : "🔴 Manual Record"}
-                    </button>
+                  {/* Manual Record Floating Overlay Button */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '16px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 11,
+                    pointerEvents: 'auto'
+                  }}>
+                    {!sensors.isRecording && !camera.isRecordingVideo && (
+                      <button
+                        className="btn-primary"
+                        style={{
+                          padding: '10px 20px',
+                          fontSize: '13px',
+                          borderRadius: '24px',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                          background: 'linear-gradient(135deg, #ff3b30, #ff2d55)'
+                        }}
+                        onClick={handleManualRecordToggle}
+                      >
+                        🔴 Manual Record
+                      </button>
+                    )}
                   </div>
+
+                </div>
+
+                {/* Bottom Sensor Telemetry Timeline: Translucent Glassmorphic Dock */}
+                <div style={{
+                  padding: '12px 16px',
+                  background: 'rgba(10, 11, 16, 0.85)',
+                  borderTop: '1px solid var(--border-glass)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  zIndex: 2
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Stability Telemetry Timeline</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Aim Hold History</span>
+                  </div>
+                  <SensorChart rollingBufferRef={sensors.rollingBufferRef} height={85} showVibrationOnly={true} />
                 </div>
 
               </div>
@@ -753,6 +754,57 @@ function App() {
               </div>
             )}
 
+            {/* Centered Glassmorphic Bow-Down Warning Popup Overlay */}
+            {showDownWarning && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 100,
+                background: 'rgba(26, 26, 36, 0.95)',
+                border: showDownWarning === 'blocked' ? '1px solid var(--tremor)' : '1px solid var(--unstable)',
+                borderRadius: '16px',
+                padding: '20px',
+                width: '260px',
+                textAlign: 'center',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.8)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                pointerEvents: 'auto',
+                animation: 'pulse 3s infinite ease-in-out'
+              }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>
+                  {showDownWarning === 'blocked' ? '🚫' : '🛑'}
+                </div>
+                <h3 style={{ color: '#fff', fontSize: '15px', marginBottom: '8px' }}>
+                  {showDownWarning === 'blocked' ? 'Cannot Start' : 'Recording Stopped'}
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.4', marginBottom: '16px' }}>
+                  {showDownWarning === 'blocked' 
+                    ? 'Recording cannot be started while the bow is pointed down. Lift your bow to aiming level first.' 
+                    : 'Recording was stopped and saved because the bow was pointed down.'}
+                </p>
+                <button
+                  className="btn-primary"
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    borderRadius: '8px',
+                    background: showDownWarning === 'blocked' ? 'var(--blue)' : 'var(--unstable)',
+                    border: 'none',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowDownWarning(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
           </div>
 
           {/* Bottom Tab Navigation Bar */}
@@ -763,7 +815,7 @@ function App() {
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             alignItems: 'center',
             zIndex: 15
           }}>
@@ -784,25 +836,6 @@ function App() {
             >
               <span style={{ fontSize: '20px' }}>🎯</span>
               <span>Tracker</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('recorder')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: activeTab === 'recorder' ? 'var(--gold)' : 'var(--text-secondary)',
-                fontSize: '11px',
-                fontWeight: activeTab === 'recorder' ? 'bold' : 'normal',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              <span style={{ fontSize: '20px' }}>📷</span>
-              <span>Recorder</span>
             </button>
 
             <button
