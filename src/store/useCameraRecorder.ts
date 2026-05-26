@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useErrorLog } from './useErrorLog';
+import { useGlobal } from './useGlobal';
 
 interface CameraRecorderState {
   stream: MediaStream | null;
@@ -29,16 +30,28 @@ export const useCameraRecorderStore = create<CameraRecorderState>((set, get) => 
   startCamera: async () => {
     if (get().stream) return get().stream;
     
-    useErrorLog.getState().addLog('Activating camera feed...');
+    const { cameraResolution, cameraFps } = useGlobal.getState();
+    useErrorLog.getState().addLog(`Activating camera: Resolution Preset=${cameraResolution}, FPS Target=${cameraFps}`);
     set({ cameraError: null });
+    
+    // Map human readable presets to ideal video width/height constraints
+    let idealWidth = 1280;
+    let idealHeight = 720;
+    if (cameraResolution === 'low') {
+      idealWidth = 640;
+      idealHeight = 480;
+    } else if (cameraResolution === 'high') {
+      idealWidth = 1920;
+      idealHeight = 1080;
+    }
     
     try {
       const constraints: MediaStreamConstraints = {
         video: {
           facingMode: 'environment', // Rear-facing camera
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
+          width: { ideal: idealWidth },
+          height: { ideal: idealHeight },
+          frameRate: { ideal: cameraFps }
         },
         audio: true
       };

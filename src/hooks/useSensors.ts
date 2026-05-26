@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useGlobal } from '../store/useGlobal';
 import { useErrorLog } from '../store/useErrorLog';
 import {
   useSensorsStore,
@@ -28,6 +29,7 @@ export interface CalibrationConfig {
 export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: () => void) => {
   const store = useSensorsStore();
   const addLog = useErrorLog(s => s.addLog);
+  const sensorRefreshRate = useGlobal(s => s.sensorRefreshRate);
 
   // Use refs for callbacks to avoid re-binding event listeners when callbacks change
   const callbacksRef = useRef({ onAutoTriggerStart, onAutoTriggerStop });
@@ -178,14 +180,14 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     window.addEventListener('deviceorientation', handleOrientation);
     window.addEventListener('devicemotion', handleMotion);
 
-    // --- 15HZ DISPLAY THROTTLER TIMER ---
-    // Only update standard React/Zustand state at 15Hz to keep rendering extremely light.
+    // --- VARIABLE DISPLAY THROTTLER TIMER ---
+    // Only update standard React/Zustand state at the user-defined frequency to prevent mobile throttling.
     const throttleInterval = setInterval(() => {
       useSensorsStore.setState({
         orientation: { ...latestOrientationRef.current },
         vibrationIndex: latestVibrationRef.current
       });
-    }, 66); // ~15Hz updates for HUD values
+    }, 1000 / sensorRefreshRate); // Dynamic refresh rate updates for HUD values
 
     return () => {
       addLog("Motion sensor listeners unregistering...");
@@ -194,7 +196,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       window.removeEventListener('devicemotion', handleMotion);
       clearInterval(throttleInterval);
     };
-  }, [store.permissionGranted, addLog]);
+  }, [store.permissionGranted, addLog, sensorRefreshRate]);
 
   // Calibration and direct actions
   const calibratePosition = useCallback((type: 'DOWN' | 'AIM') => {

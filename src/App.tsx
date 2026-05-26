@@ -27,7 +27,13 @@ function App() {
     setMockVibration,
     sessions,
     addSession,
-    deleteSession
+    deleteSession,
+    sensorRefreshRate,
+    setSensorRefreshRate,
+    cameraResolution,
+    setCameraResolution,
+    cameraFps,
+    setCameraFps
   } = useGlobal();
 
   const { logs, clearLogs } = useErrorLog();
@@ -458,6 +464,130 @@ function App() {
                       2. Lift bow: aim at targets ({sensors.calibration.aimPitch}° pitch). Auto-record starts.
                     </p>
                   </div>
+                </div>
+
+                {/* Performance Preferences Panel */}
+                <div className="glass-panel" style={{ marginTop: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ color: '#fff', fontSize: '15px', textAlign: 'left' }}>⚙️ Performance Preferences</h3>
+                  <p className="subtitle" style={{ marginTop: '-8px', fontSize: '11px', textAlign: 'left' }}>Lower refresh rates and camera details to prevent phone lockups.</p>
+                  
+                  {/* Sensor Rate Selection */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#fff', display: 'block', marginBottom: '8px', textAlign: 'left' }}>
+                      Sensor Update Rate: <strong style={{ color: 'var(--gold)' }}>{sensorRefreshRate}Hz</strong>
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                      {[10, 15, 30, 60].map((rate) => {
+                        const isSel = sensorRefreshRate === rate;
+                        let label = `${rate}Hz`;
+                        if (rate === 10) label = "10Hz (Low)";
+                        else if (rate === 15) label = "15Hz (Bal)";
+                        else if (rate === 30) label = "30Hz (High)";
+                        else if (rate === 60) label = "60Hz (Max)";
+                        
+                        return (
+                          <button
+                            key={rate}
+                            className="btn-secondary"
+                            style={{
+                              padding: '8px 4px',
+                              fontSize: '10px',
+                              borderRadius: '8px',
+                              borderColor: isSel ? 'var(--gold)' : 'var(--border-glass)',
+                              background: isSel ? 'rgba(255,204,0,0.15)' : 'rgba(255,255,255,0.03)',
+                              color: isSel ? 'var(--gold)' : 'var(--text-primary)',
+                              height: 'auto'
+                            }}
+                            onClick={() => setSensorRefreshRate(rate)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Camera Resolution Preset */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#fff', display: 'block', marginBottom: '8px', textAlign: 'left' }}>
+                      Camera Resolution: <strong style={{ color: 'var(--blue)' }}>{cameraResolution.toUpperCase()}</strong>
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '6px' }}>
+                      {(['low', 'medium', 'high'] as const).map((res) => {
+                        const isSel = cameraResolution === res;
+                        let label = "Medium (720p)";
+                        if (res === 'low') label = "Low (480p)";
+                        else if (res === 'high') label = "High (1080p)";
+                        
+                        return (
+                          <button
+                            key={res}
+                            className="btn-secondary"
+                            style={{
+                              padding: '8px 4px',
+                              fontSize: '10px',
+                              borderRadius: '8px',
+                              borderColor: isSel ? 'var(--blue)' : 'var(--border-glass)',
+                              background: isSel ? 'rgba(0,122,255,0.15)' : 'rgba(255,255,255,0.03)',
+                              color: isSel ? 'var(--blue)' : 'var(--text-primary)',
+                              height: 'auto'
+                            }}
+                            onClick={() => {
+                              setCameraResolution(res);
+                              if (camera.cameraActive) {
+                                camera.stopCamera();
+                                setTimeout(() => camera.startCamera(), 300);
+                              }
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Camera Capture Frame Rate */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#fff', display: 'block', marginBottom: '8px', textAlign: 'left' }}>
+                      Camera Capture Rate: <strong style={{ color: 'var(--blue)' }}>{cameraFps} FPS</strong>
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                      {[15, 24, 30].map((fps) => {
+                        const isSel = cameraFps === fps;
+                        let label = `${fps} FPS`;
+                        if (fps === 15) label = "15 FPS (Eco)";
+                        else if (fps === 24) label = "24 FPS (Film)";
+                        else if (fps === 30) label = "30 FPS (Smooth)";
+                        
+                        return (
+                          <button
+                            key={fps}
+                            className="btn-secondary"
+                            style={{
+                              padding: '8px 4px',
+                              fontSize: '10px',
+                              borderRadius: '8px',
+                              borderColor: isSel ? 'var(--blue)' : 'var(--border-glass)',
+                              background: isSel ? 'rgba(0,122,255,0.15)' : 'rgba(255,255,255,0.03)',
+                              color: isSel ? 'var(--blue)' : 'var(--text-primary)',
+                              height: 'auto'
+                            }}
+                            onClick={() => {
+                              setCameraFps(fps);
+                              if (camera.cameraActive) {
+                                camera.stopCamera();
+                                setTimeout(() => camera.startCamera(), 300);
+                              }
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
 
                 {/* Simulator controls card (If simulation mode) */}
