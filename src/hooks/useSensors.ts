@@ -17,6 +17,12 @@ export interface SensorDataPoint {
   roll: number;
   heading: number;
   vibration: number;
+  accX: number;
+  accY: number;
+  accZ: number;
+  magX: number;
+  magY: number;
+  magZ: number;
 }
 
 export interface CalibrationConfig {
@@ -161,12 +167,28 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
 
       // Save real-time raw values in our 60fps rolling buffers
       const now = Date.now();
+      
+      // Calculate Magnetic North Local Device Projections (project Earth Y-magnetic vector to local frame)
+      const alphaRad = (latestOrientationRef.current.alpha * Math.PI) / 180;
+      const betaRad = (latestOrientationRef.current.beta * Math.PI) / 180;
+      const gammaRad = (latestOrientationRef.current.gamma * Math.PI) / 180;
+      
+      const mX = Math.sin(alphaRad) * Math.cos(gammaRad);
+      const mY = Math.cos(alphaRad) * Math.cos(betaRad);
+      const mZ = -Math.sin(betaRad);
+
       const currentPoint: SensorDataPoint = {
         timestamp: now,
         pitch: Math.round(latestOrientationRef.current.beta),
         roll: Math.round(latestOrientationRef.current.gamma),
         heading: latestOrientationRef.current.heading,
-        vibration: mappedVibration
+        vibration: mappedVibration,
+        accX: Math.round(rawX * 100) / 100,
+        accY: Math.round(rawY * 100) / 100,
+        accZ: Math.round(rawZ * 100) / 100,
+        magX: Math.round(mX * 100) / 100,
+        magY: Math.round(mY * 100) / 100,
+        magZ: Math.round(mZ * 100) / 100
       };
 
       rollingBufferRef.current.push(currentPoint);

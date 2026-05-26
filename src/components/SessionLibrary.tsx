@@ -294,6 +294,54 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
               </div>
             )}
 
+            {/* Raw Telemetry Matrix Card (IMU & Geomagnetic North Projections) */}
+            <div className="glass-card" style={{ margin: '0 0 20px 0', padding: '16px', textAlign: 'left', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-glass)' }}>
+              <h4 style={{ color: '#fff', fontSize: '13px', marginBottom: '12px', fontWeight: 600 }}>Raw Telemetry Matrix (IMU & Magnetometer)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid var(--unstable)' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>INERTIAL ACCEL (AVG)</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', fontSize: '11px', color: '#fff', fontFamily: 'var(--mono)' }}>
+                    <span>X-Accel: <strong style={{ color: 'var(--unstable)' }}>{
+                      selectedSession.sensorData.length > 0
+                        ? (selectedSession.sensorData.reduce((acc, curr) => acc + Math.abs(curr.accX || 0), 0) / selectedSession.sensorData.length).toFixed(2)
+                        : '0.00'
+                    } m/s²</strong></span>
+                    <span>Y-Accel: <strong style={{ color: 'var(--unstable)' }}>{
+                      selectedSession.sensorData.length > 0
+                        ? (selectedSession.sensorData.reduce((acc, curr) => acc + Math.abs(curr.accY || 0), 0) / selectedSession.sensorData.length).toFixed(2)
+                        : '0.00'
+                    } m/s²</strong></span>
+                    <span>Z-Accel: <strong style={{ color: 'var(--unstable)' }}>{
+                      selectedSession.sensorData.length > 0
+                        ? (selectedSession.sensorData.reduce((acc, curr) => acc + Math.abs(curr.accZ || 0), 0) / selectedSession.sensorData.length).toFixed(2)
+                        : '0.00'
+                    } m/s²</strong></span>
+                  </div>
+                </div>
+                
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid var(--blue)' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold' }}>MAGNETIC NORTH (AVG)</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', fontSize: '11px', color: '#fff', fontFamily: 'var(--mono)' }}>
+                    <span>X-Mag: <strong style={{ color: 'var(--blue)' }}>{
+                      selectedSession.sensorData.length > 0
+                        ? (selectedSession.sensorData.reduce((acc, curr) => acc + (curr.magX || 0), 0) / selectedSession.sensorData.length).toFixed(2)
+                        : '0.00'
+                    } G</strong></span>
+                    <span>Y-Mag: <strong style={{ color: 'var(--blue)' }}>{
+                      selectedSession.sensorData.length > 0
+                        ? (selectedSession.sensorData.reduce((acc, curr) => acc + (curr.magY || 0), 0) / selectedSession.sensorData.length).toFixed(2)
+                        : '0.00'
+                    } G</strong></span>
+                    <span>Z-Mag: <strong style={{ color: 'var(--blue)' }}>{
+                      selectedSession.sensorData.length > 0
+                        ? (selectedSession.sensorData.reduce((acc, curr) => acc + (curr.magZ || 0), 0) / selectedSession.sensorData.length).toFixed(2)
+                        : '0.00'
+                    } G</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Sync Video Player (If video session) */}
             {selectedSession.type === 'video' && selectedSession.videoUrl && (
               <div style={{ marginBottom: '20px', borderRadius: 'var(--border-radius-md)', overflow: 'hidden', border: '1px solid var(--border-glass)', background: '#000' }}>

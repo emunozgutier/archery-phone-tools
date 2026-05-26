@@ -222,12 +222,27 @@ function App() {
     const log: SensorDataPoint[] = [];
     const now = Date.now();
     for (let i = 0; i < 300; i++) {
+      const aimP = sensors.calibration.aimPitch;
+      const alphaRad = (184 * Math.PI) / 180;
+      const betaRad = (aimP * Math.PI) / 180;
+      const gammaRad = (1.5 * Math.PI) / 180;
+      
+      const mX = Math.sin(alphaRad) * Math.cos(gammaRad);
+      const mY = Math.cos(alphaRad) * Math.cos(betaRad);
+      const mZ = -Math.sin(betaRad);
+
       log.push({
         timestamp: now - (300 - i) * 20,
-        pitch: sensors.calibration.aimPitch + (Math.sin(i / 10) * 2),
+        pitch: aimP + (Math.sin(i / 10) * 2),
         roll: Math.cos(i / 15) * 1.5,
         heading: 184,
-        vibration: Math.max(3, Math.round(8 + Math.sin(i / 5) * 6 + (Math.random() * 4)))
+        vibration: Math.max(3, Math.round(8 + Math.sin(i / 5) * 6 + (Math.random() * 4))),
+        accX: Math.round((Math.sin(i / 8) * 0.4 + (Math.random() * 0.1)) * 100) / 100,
+        accY: Math.round((Math.cos(i / 10) * 0.3 + (Math.random() * 0.1)) * 100) / 100,
+        accZ: Math.round((Math.sin(i / 12) * 0.5 + (Math.random() * 0.1)) * 100) / 100,
+        magX: Math.round(mX * 100) / 100,
+        magY: Math.round(mY * 100) / 100,
+        magZ: Math.round(mZ * 100) / 100
       });
     }
     return log;
