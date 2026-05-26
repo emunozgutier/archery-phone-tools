@@ -56,7 +56,7 @@ function App() {
   const [clickCoord, setClickCoord] = useState<{ x: number; y: number; score: number } | null>(null);
 
   useEffect(() => {
-    fetch('./version.json')
+    fetch(import.meta.env.BASE_URL + 'version.json')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && data.version) {

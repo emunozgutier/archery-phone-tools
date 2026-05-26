@@ -1,15 +1,14 @@
 {
   "name": "archery-phone-tools",
   "private": true,
-  "version": "2026.22.17",
+  "version": "2026.22.18",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "predeploy": "python3 helperScripts/updateVersion.py && npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "python3 helperScripts/deploy.py"
   },
   "dependencies": {
     "react": "^19.2.6",

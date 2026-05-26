@@ -3,10 +3,13 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: './',
-  plugins: [
-    react(),
-    babel({ presets: [reactCompilerPreset()] })
-  ],
+export default defineConfig(({ command }) => {
+  return {
+    base: command === 'serve' ? './' : 'https://cdn.jsdelivr.net/gh/emunozgutier/archery-phone-tools@main/dist/',
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()] })
+    ],
+  }
 })
+
