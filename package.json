@@ -1,7 +1,7 @@
 {
   "name": "archery-phone-tools",
   "private": true,
-  "version": "2026.22.8",
+  "version": "2026.22.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
