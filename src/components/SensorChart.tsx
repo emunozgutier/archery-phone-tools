@@ -9,17 +9,24 @@ interface SensorChartProps {
     magnetDominantAxis: 'x' | 'y' | 'z' | null;
   };
   triggerState?: 'IDLE' | 'ARMED' | 'AIMING';
+  currentTimeOffset?: number | null;
 }
 
 export const SensorChart: React.FC<SensorChartProps> = ({
   rollingBufferRef,
   height = 140,
   calibration,
-  triggerState
+  triggerState,
+  currentTimeOffset
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const bufferRef = rollingBufferRef;
+  const syncOffsetRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    syncOffsetRef.current = currentTimeOffset !== undefined ? currentTimeOffset : null;
+  }, [currentTimeOffset]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -132,6 +139,30 @@ export const SensorChart: React.FC<SensorChartProps> = ({
         else ctx.lineTo(x, y);
       });
       ctx.stroke();
+
+      // --- 2.5 Draw Sync Scrubber Cursor if active ---
+      const offset = syncOffsetRef.current;
+      if (offset !== null && offset !== undefined && buffer.length > 1) {
+        const tStart = buffer[0].timestamp;
+        const tEnd = buffer[buffer.length - 1].timestamp;
+        const totalDuration = (tEnd - tStart) / 1000 || 1;
+        const ratio = Math.max(0, Math.min(1, offset / totalDuration));
+        const syncX = ratio * width;
+
+        // Scrubber line
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)'; // glowing cyan
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(syncX, 0);
+        ctx.lineTo(syncX, heightVal);
+        ctx.stroke();
+
+        // Top dot indicator
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(syncX, 4, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // --- 3. Draw Diagnostics Telemetry HUD Readout ---
       const latestPt = buffer[buffer.length - 1];

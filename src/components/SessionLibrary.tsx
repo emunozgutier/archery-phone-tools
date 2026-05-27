@@ -30,6 +30,43 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
   onClearSessions
 }) => {
   const [selectedSession, setSelectedSession] = useState<ArcherySession | null>(null);
+  const [currentTimeOffset, setCurrentTimeOffset] = useState<number | null>(null);
+
+  const getDegrees = (vec: { x: number; y: number; z: number } | null | undefined, axis: 'x' | 'y' | 'z') => {
+    if (!vec) return 0;
+    const norm = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) || 1;
+    const val = vec[axis];
+    const clamped = Math.max(-1, Math.min(1, val / norm));
+    return Math.round(Math.acos(clamped) * (180 / Math.PI));
+  };
+
+  const getSyncedTelemetryPoint = (): SensorDataPoint | null => {
+    if (!selectedSession || !selectedSession.sensorData || selectedSession.sensorData.length === 0) return null;
+    if (currentTimeOffset === null) return selectedSession.sensorData[0];
+    
+    const tStart = selectedSession.sensorData[0].timestamp;
+    const targetTimestamp = tStart + currentTimeOffset * 1000;
+    
+    let closestPt = selectedSession.sensorData[0];
+    let minDiff = Math.abs(closestPt.timestamp - targetTimestamp);
+    
+    for (let i = 1; i < selectedSession.sensorData.length; i++) {
+      const pt = selectedSession.sensorData[i];
+      const diff = Math.abs(pt.timestamp - targetTimestamp);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestPt = pt;
+      } else {
+        break;
+      }
+    }
+    return closestPt;
+  };
+
+  const handleSelectSession = (session: ArcherySession | null) => {
+    setSelectedSession(session);
+    setCurrentTimeOffset(null);
+  };
 
   // Helper to format date
   const formatDate = (ts: number) => {
@@ -119,7 +156,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                   borderLeft: `4px solid ${borderCol}`,
                   transition: 'transform 0.15s, background-color 0.15s'
                 }}
-                onClick={() => setSelectedSession(session)}
+                onClick={() => handleSelectSession(session)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -191,7 +228,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
             <button
               className="btn-secondary"
               style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '13px' }}
-              onClick={() => setSelectedSession(null)}
+              onClick={() => handleSelectSession(null)}
             >
               Close
             </button>
@@ -341,8 +378,76 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                   controls
                   playsInline
                   style={{ width: '100%', display: 'block', maxHeight: '220px' }}
+                  onTimeUpdate={(e) => setCurrentTimeOffset(e.currentTarget.currentTime)}
                 />
               </div>
+            )}
+
+            {/* Real-time Video Synced Telemetry HUD */}
+            {selectedSession.type === 'video' && selectedSession.videoUrl && (
+              (() => {
+                const syncedPt = getSyncedTelemetryPoint();
+                if (!syncedPt) return null;
+                return (
+                  <div className="glass-card" style={{
+                    margin: '0 0 20px 0',
+                    padding: '14px',
+                    background: 'rgba(56, 189, 248, 0.04)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '12px',
+                    textAlign: 'left'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        🔄 VIDEO SYNCED TELEMETRY
+                      </span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'var(--mono)' }}>
+                        Time: {currentTimeOffset !== null ? currentTimeOffset.toFixed(2) : '0.00'}s / {selectedSession.duration}s
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      {/* Gravity Components */}
+                      <div style={{ background: 'rgba(0,0,0,0.4)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid var(--gold)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold', letterSpacing: '0.5px' }}>GRAVITY VECTOR ANGLE</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', fontSize: '11px', color: '#fff', fontFamily: 'var(--mono)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>X (Pitch):</span>
+                            <strong style={{ color: 'var(--gold)' }}>{getDegrees({ x: syncedPt.accX, y: syncedPt.accY, z: syncedPt.accZ }, 'x')}°</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Y (Roll):</span>
+                            <strong style={{ color: 'var(--blue)' }}>{getDegrees({ x: syncedPt.accX, y: syncedPt.accY, z: syncedPt.accZ }, 'y')}°</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Z (Heading):</span>
+                            <strong style={{ color: 'var(--steady)' }}>{getDegrees({ x: syncedPt.accX, y: syncedPt.accY, z: syncedPt.accZ }, 'z')}°</strong>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Magnet Components */}
+                      <div style={{ background: 'rgba(0,0,0,0.4)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid var(--steady)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold', letterSpacing: '0.5px' }}>MAGNET ANGLE</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', fontSize: '11px', color: '#fff', fontFamily: 'var(--mono)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>X Component:</span>
+                            <strong style={{ color: 'var(--gold)' }}>{getDegrees({ x: syncedPt.magX, y: syncedPt.magY, z: syncedPt.magZ }, 'x')}°</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Y Component:</span>
+                            <strong style={{ color: 'var(--blue)' }}>{getDegrees({ x: syncedPt.magX, y: syncedPt.magY, z: syncedPt.magZ }, 'y')}°</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Z Component:</span>
+                            <strong style={{ color: 'var(--steady)' }}>{getDegrees({ x: syncedPt.magX, y: syncedPt.magY, z: syncedPt.magZ }, 'z')}°</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
             )}
 
             {/* Synced Telemetry Timeline */}
@@ -352,6 +457,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                 rollingBufferRef={{ current: selectedSession.sensorData }}
                 height={160}
                 triggerState="AIMING"
+                currentTimeOffset={currentTimeOffset}
               />
               <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '6px', textAlign: 'left', lineHeight: '1.4' }}>
                 💡 Overlaid color-coded curves track the exact angles of your calibrated dominant gravity and magnet axes in degrees (0-180°). Perfect flat, horizontal lines signify peak aiming consistency!
@@ -373,7 +479,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                 style={{ width: '100%', fontSize: '14px', padding: '12px', color: 'var(--unstable)', border: '1px solid rgba(255, 59, 48, 0.2)' }}
                 onClick={() => {
                   onDeleteSession(selectedSession.id);
-                  setSelectedSession(null);
+                  handleSelectSession(null);
                 }}
               >
                 🗑️ Delete Session
