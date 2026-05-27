@@ -1009,31 +1009,7 @@ function App() {
                     </div>
                   ) : null}
 
-                  {/* Manual Record Floating Overlay Button */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '16px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 11,
-                    pointerEvents: 'auto'
-                  }}>
-                    {!sensors.isRecording && !camera.isRecordingVideo && (
-                      <button
-                        className="btn-primary"
-                        style={{
-                          padding: '10px 20px',
-                          fontSize: '13px',
-                          borderRadius: '24px',
-                          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-                          background: 'linear-gradient(135deg, #ff3b30, #ff2d55)'
-                        }}
-                        onClick={handleManualRecordToggle}
-                      >
-                        🔴 Manual Record
-                      </button>
-                    )}
-                  </div>
+
 
                 </div>
 
