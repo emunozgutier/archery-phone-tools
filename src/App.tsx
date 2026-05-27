@@ -17,7 +17,6 @@ function App() {
   const {
     activeTab,
     setActiveTab,
-    isOnboarded,
     setIsOnboarded,
     isMockActive,
     setIsMockActive,
@@ -398,16 +397,14 @@ function App() {
     }
   };
 
-  // Manage camera lifecycles based on tab states and preference
+  // Manage camera lifecycles based on preference and permission status
   useEffect(() => {
-    if (isOnboarded && !isMockActive) {
-      if (activeTab === 'tracker' && isCameraEnabled) {
-        camera.startCamera();
-      } else {
-        camera.stopCamera();
-      }
+    if (sensors.permissionGranted === true && !isMockActive && isCameraEnabled) {
+      camera.startCamera();
+    } else {
+      camera.stopCamera();
     }
-  }, [activeTab, isOnboarded, isMockActive, isCameraEnabled, camera]);
+  }, [sensors.permissionGranted, isMockActive, isCameraEnabled, camera]);
 
   const renderCalibrationMatrix = () => {
     const c = sensors.calibration;
@@ -902,9 +899,46 @@ function App() {
           {/* Viewport Render Area */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             
+            {/* Share camera stream or mock background as the global viewport background! */}
+            {isCameraEnabled && !isMockActive && camera.stream ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  zIndex: 1
+                }}
+              />
+            ) : isCameraEnabled && isMockActive ? (
+              <div style={{
+                width: '100%',
+                height: '100%',
+                background: 'radial-gradient(circle, #1a1a24 20%, #0a0b10 90%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-secondary)',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 1
+              }}>
+                <span style={{ fontSize: '32px' }}>📷</span>
+                <span style={{ fontSize: '13px', marginTop: '10px', opacity: 0.6 }}>Simulated Target Camera Feed</span>
+              </div>
+            ) : null}
+
             {/* Tab 1: Tracker & Recorder Unified View */}
             {activeTab === 'tracker' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
                 
                 {/* Main Viewport: Live Camera Feed & Interactive reticle */}
                 <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '320px' }}>
@@ -921,7 +955,7 @@ function App() {
                     onStopRecording={handleManualRecordToggle}
                   />
 
-                  {/* Back Camera Live Stream or Simulated Mock Background */}
+                  {/* Fallback overlays when camera is disabled or loading */}
                   {!isCameraEnabled ? (
                     <div style={{
                       width: '100%',
@@ -956,40 +990,7 @@ function App() {
                         Camera feedback is disabled. Real-time telemetry, leveling, and bow stability are active.
                       </p>
                     </div>
-                  ) : isMockActive ? (
-                    <div style={{
-                      width: '100%',
-                      height: '100%',
-                      background: 'radial-gradient(circle, #1a1a24 20%, #0a0b10 90%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text-secondary)',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0
-                    }}>
-                      <span style={{ fontSize: '32px' }}>📷</span>
-                      <span style={{ fontSize: '13px', marginTop: '10px', opacity: 0.6 }}>Simulated Target Camera Feed</span>
-                    </div>
-                  ) : camera.stream ? (
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        zIndex: 1
-                      }}
-                    />
-                  ) : (
+                  ) : !camera.stream && !isMockActive ? (
                     <div style={{
                       width: '100%',
                       height: '100%',
@@ -1003,12 +1004,13 @@ function App() {
                       textAlign: 'center',
                       position: 'absolute',
                       top: 0,
-                      left: 0
+                      left: 0,
+                      zIndex: 1
                     }}>
                       <span>Camera is loading...</span>
                       {camera.cameraError && <p style={{ color: 'var(--unstable)', fontSize: '12px', marginTop: '10px' }}>{camera.cameraError}</p>}
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Manual Record Floating Overlay Button */}
                   <div style={{
@@ -1059,12 +1061,14 @@ function App() {
 
             {/* Tab 3: Session Library View */}
             {activeTab === 'sessions' && (
-              <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} onClearSessions={clearSessions} />
+              <div style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 2 }}>
+                <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} onClearSessions={clearSessions} />
+              </div>
             )}
 
             {/* Tab 4: Calibration View */}
             {activeTab === 'calibration' && (
-              <div className="scrollable">
+              <div className="scrollable" style={{ position: 'relative', zIndex: 2 }}>
                 <div style={{ marginBottom: '20px' }}>
                   <h2 className="header-title">Trigger Calibration</h2>
                   <p className="subtitle">Tailor the Auto-Record trigger to your mounting angle.</p>
