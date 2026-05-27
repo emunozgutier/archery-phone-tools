@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { useErrorLog } from './useErrorLog';
+import { usePermission } from './usePermission';
+import { useCalibration } from './useCalibration';
 
 export type AppState = 'permissions' | 'calibrating' | 'active' | 'post_shot';
 
@@ -25,11 +27,34 @@ interface StateMachineStore {
   setActiveTab: (tab: ActiveTab) => void;
 }
 
-export const useStateStore = create<StateMachineStore>((set) => ({
-  appState: 'permissions',
-  trackerState: 'idle',
-  triggerState: 'IDLE',
-  activeTab: 'tracker',
+export const useStateStore = create<StateMachineStore>((set) => {
+  const getTodayDateString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const initialAppState = (() => {
+    const permissionStore = usePermission.getState();
+    const calibrationStore = useCalibration.getState();
+    const today = getTodayDateString();
+
+    const hasPermissionToday = permissionStore.approvalDate === today;
+    const hasCalibrationToday = calibrationStore.calibrationDate === today;
+
+    if (!hasPermissionToday) {
+      return 'permissions';
+    }
+    if (!hasCalibrationToday) {
+      return 'calibrating';
+    }
+    return 'active';
+  })();
+
+  return {
+    appState: initialAppState,
+    trackerState: 'idle',
+    triggerState: 'IDLE',
+    activeTab: 'tracker',
   
   setAppState: (appState) => {
     useErrorLog.getState().addLog(`State machine transition to: ${appState.toUpperCase()}`);
@@ -45,6 +70,6 @@ export const useStateStore = create<StateMachineStore>((set) => ({
     }
     set({ trackerState, triggerState });
   },
-  
   setActiveTab: (activeTab) => set({ activeTab })
-}));
+  };
+});

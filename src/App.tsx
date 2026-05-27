@@ -10,6 +10,8 @@ import { SessionLibrary } from './components/SessionLibrary';
 import { useGlobal } from './store/useGlobal';
 import { useErrorLog } from './store/useErrorLog';
 import { useStateStore } from './store/useState';
+import { usePermission } from './store/usePermission';
+import { useCalibration } from './store/useCalibration';
 import './App.css';
 
 function App() {
@@ -151,6 +153,7 @@ function App() {
   useEffect(() => {
     if (appState === 'permissions' && sensors.permissionGranted === true && camera.cameraActive === true) {
       useErrorLog.getState().addLog('Auto-unlocking onboarding: Both Motion & Camera permissions are active.');
+      usePermission.getState().approvePermissions();
       setIsOnboarded(true);
     }
   }, [appState, sensors.permissionGranted, camera.cameraActive, setIsOnboarded]);
@@ -160,6 +163,7 @@ function App() {
     const nextMock = !isMockActive;
     setIsMockActive(nextMock);
     if (nextMock) {
+      usePermission.getState().approvePermissions();
       setIsOnboarded(true);
     }
   };
@@ -707,6 +711,7 @@ function App() {
               }}
               disabled={sensors.calibration.restingGravity === null || sensors.calibration.aimingGravity === null}
               onClick={() => {
+                useCalibration.getState().completeCalibration();
                 setAppState('active');
                 setActiveTab('tracker');
               }}
@@ -1085,6 +1090,109 @@ function App() {
                     </p>
                   </div>
                 </div>
+
+                {/* Authorization & Device Status Panel */}
+                {(() => {
+                  const permissionStore = usePermission();
+                  const calibrationStore = useCalibration();
+                  
+                  return (
+                    <div className="glass-panel" style={{ marginTop: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <h3 style={{ color: '#fff', fontSize: '15px', textAlign: 'left', margin: 0 }}>🛡️ System Credentials</h3>
+                      <p className="subtitle" style={{ marginTop: '-8px', fontSize: '11px', textAlign: 'left' }}>Monitor dates of approval and re-initialize authorization bounds.</p>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        {/* Permissions status card */}
+                        <div className="glass-card" style={{ margin: 0, padding: '14px', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                              <span style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: permissionStore.approvalDate ? 'var(--steady)' : 'var(--unstable)',
+                                display: 'inline-block',
+                                boxShadow: permissionStore.approvalDate ? '0 0 8px var(--steady)' : 'none'
+                              }} />
+                              <strong style={{ color: '#fff', fontSize: '13px' }}>Permissions</strong>
+                            </div>
+                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>DATE APPROVED</span>
+                            <span style={{ fontSize: '12px', color: permissionStore.approvalDate ? '#fff' : 'var(--unstable)', fontWeight: 'bold' }}>
+                              {permissionStore.approvalDate || 'Not Approved Today'}
+                            </span>
+                          </div>
+                          
+                          <button
+                            className="btn-secondary"
+                            style={{
+                              width: '100%',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              borderRadius: '8px',
+                              marginTop: '12px',
+                              borderColor: 'rgba(255,255,255,0.1)',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              pointerEvents: 'auto'
+                            }}
+                            onClick={() => {
+                              if (window.confirm("Re-request system permissions? You will be redirected to the onboarding setup.")) {
+                                permissionStore.resetPermissions();
+                                setAppState('permissions');
+                              }
+                            }}
+                          >
+                            🔄 Reset & Re-authorize
+                          </button>
+                        </div>
+                        
+                        {/* Calibration status card */}
+                        <div className="glass-card" style={{ margin: 0, padding: '14px', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                              <span style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: calibrationStore.calibrationDate ? 'var(--steady)' : 'var(--unstable)',
+                                display: 'inline-block',
+                                boxShadow: calibrationStore.calibrationDate ? '0 0 8px var(--steady)' : 'none'
+                              }} />
+                              <strong style={{ color: '#fff', fontSize: '13px' }}>Calibration</strong>
+                            </div>
+                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>LAST CALIBRATED</span>
+                            <span style={{ fontSize: '12px', color: calibrationStore.calibrationDate ? '#fff' : 'var(--unstable)', fontWeight: 'bold' }}>
+                              {calibrationStore.calibrationDate || 'Not Calibrated Today'}
+                            </span>
+                          </div>
+                          
+                          <button
+                            className="btn-secondary"
+                            style={{
+                              width: '100%',
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              borderRadius: '8px',
+                              marginTop: '12px',
+                              borderColor: 'rgba(255,255,255,0.1)',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              pointerEvents: 'auto'
+                            }}
+                            onClick={() => {
+                              if (window.confirm("Re-calibrate aiming angles? You will be redirected to the calibration wizard.")) {
+                                calibrationStore.resetCalibration();
+                                setAppState('calibrating');
+                              }
+                            }}
+                          >
+                            📐 Recalibrate Angles
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Performance Preferences Panel */}
                 <div className="glass-panel" style={{ marginTop: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
