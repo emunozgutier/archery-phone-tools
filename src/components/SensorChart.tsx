@@ -107,38 +107,45 @@ export const SensorChart: React.FC<SensorChartProps> = ({
       const maxPoints = 120; // 2 seconds of 60fps data
       const spacing = width / (maxPoints - 1);
 
-      // Resolve calibrated dominant tracking axes
-      const gAxis = calibration?.gravityDominantAxis || 'y';
-      const mAxis = calibration?.magnetDominantAxis || 'z';
-
       // If in ARMED or IDLE mode, force traces to flat zero
       const isAiming = triggerState === 'AIMING';
 
-      // --- 1. Draw Gravity Component Angle for Picked Axis (0-180°) ---
+      // --- 1. Draw Gravity Component Angles (X, Y, Z) - Solid Lines ---
       ctx.lineWidth = 2;
-      ctx.strokeStyle = getAxisColor(gAxis);
-      ctx.beginPath();
-      buffer.forEach((pt, idx) => {
-        const x = idx * spacing;
-        const gAngle = isAiming ? getDegrees({ x: pt.accX, y: pt.accY, z: pt.accZ }, gAxis) : 0;
-        const y = heightVal - ((gAngle / 180) * (heightVal - 30)) - 8;
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
+      ctx.setLineDash([]); // Ensure solid line
 
-      // --- 2. Draw Magnet Component Angle for Picked Axis (0-180°) ---
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = getAxisColor(mAxis);
-      ctx.beginPath();
-      buffer.forEach((pt, idx) => {
-        const x = idx * spacing;
-        const mAngle = isAiming ? getDegrees({ x: pt.magX, y: pt.magY, z: pt.magZ }, mAxis) : 0;
-        const y = heightVal - ((mAngle / 180) * (heightVal - 30)) - 8;
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+      (['x', 'y', 'z'] as const).forEach((axis) => {
+        ctx.strokeStyle = getAxisColor(axis);
+        ctx.beginPath();
+        buffer.forEach((pt, idx) => {
+          const x = idx * spacing;
+          const gAngle = isAiming ? getDegrees({ x: pt.accX, y: pt.accY, z: pt.accZ }, axis) : 0;
+          const y = heightVal - ((gAngle / 180) * (heightVal - 30)) - 8;
+          if (idx === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
       });
-      ctx.stroke();
+
+      // --- 2. Draw Magnet Component Angles (X, Y, Z) - Dashed Lines ---
+      ctx.lineWidth = 1.5; // Slightly thinner for crisp dashed line rendering
+      ctx.setLineDash([4, 4]);
+
+      (['x', 'y', 'z'] as const).forEach((axis) => {
+        ctx.strokeStyle = getAxisColor(axis);
+        ctx.beginPath();
+        buffer.forEach((pt, idx) => {
+          const x = idx * spacing;
+          const mAngle = isAiming ? getDegrees({ x: pt.magX, y: pt.magY, z: pt.magZ }, axis) : 0;
+          const y = heightVal - ((mAngle / 180) * (heightVal - 30)) - 8;
+          if (idx === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+
+      // Reset line dash for any subsequent drawings
+      ctx.setLineDash([]);
 
       // --- 2.5 Draw Sync Scrubber Cursor if active ---
       const offset = syncOffsetRef.current;
@@ -166,10 +173,15 @@ export const SensorChart: React.FC<SensorChartProps> = ({
 
       // --- 3. Draw Diagnostics Telemetry HUD Readout ---
       const latestPt = buffer[buffer.length - 1];
-      const latestGAngle = getDegrees({ x: latestPt.accX, y: latestPt.accY, z: latestPt.accZ }, gAxis);
-      const latestMAngle = getDegrees({ x: latestPt.magX, y: latestPt.magY, z: latestPt.magZ }, mAxis);
+      const latestGX = getDegrees({ x: latestPt.accX, y: latestPt.accY, z: latestPt.accZ }, 'x');
+      const latestGY = getDegrees({ x: latestPt.accX, y: latestPt.accY, z: latestPt.accZ }, 'y');
+      const latestGZ = getDegrees({ x: latestPt.accX, y: latestPt.accY, z: latestPt.accZ }, 'z');
 
-      ctx.font = '9px JetBrains Mono, monospace';
+      const latestMX = getDegrees({ x: latestPt.magX, y: latestPt.magY, z: latestPt.magZ }, 'x');
+      const latestMY = getDegrees({ x: latestPt.magX, y: latestPt.magY, z: latestPt.magZ }, 'y');
+      const latestMZ = getDegrees({ x: latestPt.magX, y: latestPt.magY, z: latestPt.magZ }, 'z');
+
+      ctx.font = '8px JetBrains Mono, monospace';
       ctx.textBaseline = 'top';
 
       // Left side: current tracking state
@@ -177,12 +189,24 @@ export const SensorChart: React.FC<SensorChartProps> = ({
       ctx.textAlign = 'left';
       ctx.fillText(`📊 STATUS: ${triggerState || 'IDLE'}`, 8, 8);
 
-      // Right side: picked components angles (show 0 if in ARMED/IDLE mode)
+      // Right side: show all 6 traces (X, Y, Z for Gravity and Magnet)
       ctx.textAlign = 'right';
-      ctx.fillStyle = getAxisColor(gAxis);
-      ctx.fillText(`🎯 Grav ${gAxis.toUpperCase()}: ${isAiming ? latestGAngle : 0}°`, width - 8, 8);
-      ctx.fillStyle = getAxisColor(mAxis);
-      ctx.fillText(`🧲 Mag ${mAxis.toUpperCase()}: ${isAiming ? latestMAngle : 0}°`, width - 8, 18);
+      
+      // Gravity values
+      ctx.fillStyle = '#fff';
+      ctx.fillText(
+        `🎯 G: X:${isAiming ? latestGX : 0}° Y:${isAiming ? latestGY : 0}° Z:${isAiming ? latestGZ : 0}°`, 
+        width - 8, 
+        8
+      );
+      
+      // Magnet values
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.fillText(
+        `🧲 M: X:${isAiming ? latestMX : 0}° Y:${isAiming ? latestMY : 0}° Z:${isAiming ? latestMZ : 0}°`, 
+        width - 8, 
+        18
+      );
 
       animationFrameRef.current = requestAnimationFrame(draw);
     };
