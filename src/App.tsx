@@ -405,82 +405,176 @@ function App() {
   const renderCalibrationMatrix = () => {
     const c = sensors.calibration;
     
-    const formatVal = (val: number | null | undefined) => {
-      if (val === null || val === undefined) return <span style={{ color: 'var(--text-secondary)', opacity: 0.5 }}>—</span>;
-      return <strong style={{ fontFamily: 'var(--mono)', fontSize: '11px' }}>{val.toFixed(2)}</strong>;
-    };
-    
-    const getAxisHighlight = (axis: 'x' | 'y' | 'z', dominant: 'x' | 'y' | 'z' | null) => {
-      if (dominant === axis) {
-        return {
-          background: 'rgba(56, 189, 248, 0.15)',
-          border: '1px solid rgba(56, 189, 248, 0.4)',
-          borderRadius: '4px',
-          padding: '2px 6px',
-          color: '#38bdf8',
-          fontWeight: 'bold'
-        };
+    const renderCell = (val: number | null | undefined, axis: 'x' | 'y' | 'z', dominant: 'x' | 'y' | 'z' | null, defaultColor: string, isLive: boolean) => {
+      if (val === null || val === undefined) {
+        return (
+          <div style={{
+            display: 'inline-block',
+            fontSize: '10px',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            background: 'rgba(255, 255, 255, 0.01)',
+            border: '1px dashed rgba(255, 255, 255, 0.1)',
+            color: 'var(--text-secondary)',
+            opacity: 0.4,
+            textAlign: 'center',
+            minWidth: '55px'
+          }}>
+            —
+          </div>
+        );
       }
-      return { padding: '2px 6px' };
+      
+      const isDominant = dominant === axis;
+      const bg = isDominant 
+        ? 'rgba(56, 189, 248, 0.12)' 
+        : (isLive ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.15)');
+      const border = isDominant 
+        ? '1px solid rgba(56, 189, 248, 0.4)' 
+        : '1px solid rgba(255, 255, 255, 0.04)';
+      const textColor = isDominant ? '#38bdf8' : defaultColor;
+      const shadow = isDominant ? '0 0 10px rgba(56, 189, 248, 0.15)' : 'none';
+      
+      return (
+        <div style={{
+          display: 'inline-block',
+          fontFamily: 'var(--mono)',
+          fontSize: '11px',
+          fontWeight: isDominant ? '700' : '600',
+          padding: '4px 8px',
+          borderRadius: '6px',
+          background: bg,
+          border: border,
+          color: textColor,
+          textAlign: 'center',
+          minWidth: '55px',
+          boxShadow: shadow,
+          transition: 'all 0.2s ease'
+        }}>
+          {val.toFixed(2)}
+        </div>
+      );
     };
 
     return (
-      <div className="glass-card" style={{ margin: '16px 0', padding: '16px', background: 'rgba(15, 23, 42, 0.4)', border: '1px solid var(--border-glass)' }}>
-        <h4 style={{ fontSize: '13px', color: '#fff', margin: '0 0 12px 0', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          📊 Sensor Vector Alignment Matrix (6-Axis)
+      <div className="glass-card" style={{ 
+        margin: '20px 0', 
+        padding: '18px', 
+        background: 'linear-gradient(135deg, rgba(22, 24, 35, 0.8) 0%, rgba(15, 17, 26, 0.8) 100%)', 
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '20px',
+        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)'
+      }}>
+        <h4 style={{ 
+          fontSize: '13px', 
+          fontWeight: '700',
+          color: '#fff', 
+          margin: '0 0 16px 0', 
+          textAlign: 'left', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          letterSpacing: '-0.2px'
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '16px' }}>📊</span> Sensor Vector Alignment Matrix
+          </span>
+          <span style={{ 
+            fontSize: '9px', 
+            background: 'rgba(52, 199, 89, 0.12)', 
+            border: '1px solid rgba(52, 199, 89, 0.3)', 
+            color: 'var(--steady)', 
+            padding: '2px 8px', 
+            borderRadius: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontWeight: 'bold',
+            animation: 'pulse 2s infinite ease-in-out'
+          }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--steady)', display: 'inline-block' }}></span>
+            LIVE FEED
+          </span>
         </h4>
         
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left', minWidth: '280px' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left', minWidth: '300px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
-                <th style={{ padding: '6px 4px' }}>Sensor / State</th>
-                <th style={{ padding: '6px 4px', color: 'var(--gold)' }}>X-Axis</th>
-                <th style={{ padding: '6px 4px', color: 'var(--blue)' }}>Y-Axis</th>
-                <th style={{ padding: '6px 4px', color: 'var(--steady)' }}>Z-Axis</th>
+                <th style={{ padding: '8px 4px', fontWeight: '600' }}>Sensor / State</th>
+                <th style={{ padding: '8px 4px', color: 'var(--gold)', fontWeight: '600', textAlign: 'center' }}>X (Pitch)</th>
+                <th style={{ padding: '8px 4px', color: 'var(--blue)', fontWeight: '600', textAlign: 'center' }}>Y (Roll)</th>
+                <th style={{ padding: '8px 4px', color: 'var(--steady)', fontWeight: '600', textAlign: 'center' }}>Z (Heading)</th>
               </tr>
             </thead>
             <tbody>
-              {/* Live Measurements */}
+              {/* Live Measurements Header */}
+               <tr>
+                 <td colSpan={4} style={{ padding: '10px 4px 6px 4px', fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                   Live Telemetry
+                 </td>
+               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                <td style={{ padding: '8px 4px', color: '#f8fafc', fontWeight: '500' }}>🔴 Current Gravity</td>
-                <td style={{ padding: '8px 4px', color: 'var(--gold)' }}>{formatVal(currentGravity.x)}</td>
-                <td style={{ padding: '8px 4px', color: 'var(--blue)' }}>{formatVal(currentGravity.y)}</td>
-                <td style={{ padding: '8px 4px', color: 'var(--steady)' }}>{formatVal(currentGravity.z)}</td>
+                <td style={{ padding: '6px 4px', color: '#f8fafc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: 'var(--gold)', fontSize: '12px' }}>⚖️</span> Gravity
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity.x, 'x', null, 'var(--gold)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity.y, 'y', null, 'var(--blue)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity.z, 'z', null, 'var(--steady)', true)}</td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <td style={{ padding: '8px 4px', color: '#f8fafc', fontWeight: '500' }}>🔴 Current Magnet</td>
-                <td style={{ padding: '8px 4px', color: 'var(--gold)' }}>{formatVal(currentMagnet.x)}</td>
-                <td style={{ padding: '8px 4px', color: 'var(--blue)' }}>{formatVal(currentMagnet.y)}</td>
-                <td style={{ padding: '8px 4px', color: 'var(--steady)' }}>{formatVal(currentMagnet.z)}</td>
+                <td style={{ padding: '6px 4px', color: '#f8fafc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: 'var(--steady)', fontSize: '12px' }}>🧲</span> Magnet
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet.x, 'x', null, 'var(--gold)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet.y, 'y', null, 'var(--blue)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet.z, 'z', null, 'var(--steady)', true)}</td>
               </tr>
               
-              {/* Resting Position */}
+              {/* Resting Position Header */}
+               <tr>
+                 <td colSpan={4} style={{ padding: '12px 4px 6px 4px', fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                   Resting Profile (DOWN)
+                 </td>
+               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🏹 Resting Gravity</td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.gravityDominantAxis)}>{formatVal(c.restingGravity?.x)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.gravityDominantAxis)}>{formatVal(c.restingGravity?.y)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.gravityDominantAxis)}>{formatVal(c.restingGravity?.z)}</span></td>
+                <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>⚖️</span> Gravity DOWN
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity?.x, 'x', c.gravityDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity?.y, 'y', c.gravityDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity?.z, 'z', c.gravityDominantAxis, 'var(--steady)', false)}</td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🏹 Resting Magnet</td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.magnetDominantAxis)}>{formatVal(c.restingMagnet?.x)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.magnetDominantAxis)}>{formatVal(c.restingMagnet?.y)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.magnetDominantAxis)}>{formatVal(c.restingMagnet?.z)}</span></td>
+                <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🧲</span> Magnet DOWN
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet?.x, 'x', c.magnetDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet?.y, 'y', c.magnetDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet?.z, 'z', c.magnetDominantAxis, 'var(--steady)', false)}</td>
               </tr>
               
-              {/* Aiming Position */}
+              {/* Aiming Position Header */}
+               <tr>
+                 <td colSpan={4} style={{ padding: '12px 4px 6px 4px', fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                   Aiming Profile (AIM)
+                 </td>
+               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🎯 Aiming Gravity</td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.gravityDominantAxis)}>{formatVal(c.aimingGravity?.x)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.gravityDominantAxis)}>{formatVal(c.aimingGravity?.y)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.gravityDominantAxis)}>{formatVal(c.aimingGravity?.z)}</span></td>
+                <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>⚖️</span> Gravity AIM
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity?.x, 'x', c.gravityDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity?.y, 'y', c.gravityDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity?.z, 'z', c.gravityDominantAxis, 'var(--steady)', false)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🎯 Aiming Magnet</td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.magnetDominantAxis)}>{formatVal(c.aimingMagnet?.x)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.magnetDominantAxis)}>{formatVal(c.aimingMagnet?.y)}</span></td>
-                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.magnetDominantAxis)}>{formatVal(c.aimingMagnet?.z)}</span></td>
+                <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🧲</span> Magnet AIM
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet?.x, 'x', c.magnetDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet?.y, 'y', c.magnetDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet?.z, 'z', c.magnetDominantAxis, 'var(--steady)', false)}</td>
               </tr>
             </tbody>
           </table>
@@ -489,31 +583,58 @@ function App() {
         {/* Dominant Axis Results Feedback */}
         {(c.gravityDominantAxis || c.magnetDominantAxis) && (
           <div style={{
-            marginTop: '12px',
-            padding: '10px 12px',
-            borderRadius: '8px',
-            background: 'rgba(56, 189, 248, 0.08)',
-            border: '1px solid rgba(56, 189, 248, 0.2)',
+            marginTop: '16px',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            background: 'rgba(56, 189, 248, 0.06)',
+            border: '1px solid rgba(56, 189, 248, 0.15)',
             fontSize: '11px',
             color: '#e2e8f0',
             textAlign: 'left',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '6px'
           }}>
-            <strong style={{ color: '#38bdf8', fontSize: '11.5px', display: 'block', marginBottom: '2px' }}>🎯 Calibration Insights:</strong>
+            <strong style={{ color: '#38bdf8', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+              🔑 Calibration Diagnostics:
+            </strong>
             {c.gravityDominantAxis && (
-              <div>
-                Gravity Axis with Most Change: <strong style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{c.gravityDominantAxis}-Axis</strong> 
-                <span style={{ color: 'var(--text-secondary)' }}> (Greatest change due to phone tilt)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Gravity Axis with Most Change:</span>
+                <span style={{ 
+                  fontSize: '10px', 
+                  background: 'rgba(255, 204, 0, 0.12)', 
+                  border: '1px solid rgba(255, 204, 0, 0.3)', 
+                  color: 'var(--gold)', 
+                  padding: '2px 8px', 
+                  borderRadius: '4px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase'
+                }}>
+                  {c.gravityDominantAxis}-Axis
+                </span>
               </div>
             )}
             {c.magnetDominantAxis && (
-              <div>
-                Magnet Axis with Most Change: <strong style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{c.magnetDominantAxis}-Axis</strong>
-                <span style={{ color: 'var(--text-secondary)' }}> (Greatest change in magnetic projection)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Magnet Axis with Most Change:</span>
+                <span style={{ 
+                  fontSize: '10px', 
+                  background: 'rgba(52, 199, 89, 0.12)', 
+                  border: '1px solid rgba(52, 199, 89, 0.3)', 
+                  color: 'var(--steady)', 
+                  padding: '2px 8px', 
+                  borderRadius: '4px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase'
+                }}>
+                  {c.magnetDominantAxis}-Axis
+                </span>
               </div>
             )}
+            <p style={{ fontSize: '9.5px', color: 'var(--text-secondary)', marginTop: '4px', fontStyle: 'italic', lineHeight: '1.3' }}>
+              The system has automatically selected these axes because they exhibit the greatest absolute vector changes between your resting and aiming postures, providing optimal stability tracking.
+            </p>
           </div>
         )}
       </div>
