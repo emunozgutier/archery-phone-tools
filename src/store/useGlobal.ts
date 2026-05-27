@@ -4,7 +4,6 @@ import { useErrorLog } from './useErrorLog';
 import { useStateStore } from './useState';
 
 interface GlobalState {
-  activeTab: 'tracker' | 'sessions' | 'calibration';
   isOnboarded: boolean;
   isMockActive: boolean;
   mockPitch: number;
@@ -22,7 +21,6 @@ interface GlobalState {
   tempSessionData: Partial<ArcherySession> | null;
   isCameraEnabled: boolean;
   
-  setActiveTab: (tab: GlobalState['activeTab']) => void;
   setIsOnboarded: (onboarded: boolean) => void;
   setIsMockActive: (active: boolean) => void;
   setMockPitch: (pitch: number) => void;
@@ -43,7 +41,6 @@ interface GlobalState {
 }
 
 export const useGlobal = create<GlobalState>((set) => ({
-  activeTab: 'tracker',
   isOnboarded: false,
   isMockActive: false,
   mockPitch: -60,
@@ -97,7 +94,6 @@ export const useGlobal = create<GlobalState>((set) => ({
     }
   })(),
   
-  setActiveTab: (activeTab) => set({ activeTab }),
   
   setIsOnboarded: (isOnboarded) => {
     useErrorLog.getState().addLog(`Onboarding status changed to: ${isOnboarded}`);

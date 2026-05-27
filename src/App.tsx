@@ -15,8 +15,6 @@ import './App.css';
 function App() {
   // Global Zustand Stores
   const {
-    activeTab,
-    setActiveTab,
     isOnboarded,
     setIsOnboarded,
     isMockActive,
@@ -45,7 +43,7 @@ function App() {
     setIsCameraEnabled
   } = useGlobal();
 
-  const { appState, setAppState } = useStateStore();
+  const { appState, setAppState, activeTab, setActiveTab } = useStateStore();
 
   const { logs, clearLogs } = useErrorLog();
   const mockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

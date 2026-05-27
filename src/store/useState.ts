@@ -12,19 +12,24 @@ export type TrackerState =
   | 'stable_state_aim' 
   | 'exit_aiming_aim';
 
+export type ActiveTab = 'tracker' | 'sessions' | 'calibration';
+
 interface StateMachineStore {
   appState: AppState;
   trackerState: TrackerState;
   triggerState: 'IDLE' | 'ARMED' | 'AIMING';
+  activeTab: ActiveTab;
   
   setAppState: (state: AppState) => void;
   setTrackerState: (state: TrackerState) => void;
+  setActiveTab: (tab: ActiveTab) => void;
 }
 
 export const useStateStore = create<StateMachineStore>((set) => ({
   appState: 'permissions',
   trackerState: 'idle',
   triggerState: 'IDLE',
+  activeTab: 'tracker',
   
   setAppState: (appState) => {
     useErrorLog.getState().addLog(`State machine transition to: ${appState.toUpperCase()}`);
@@ -39,5 +44,7 @@ export const useStateStore = create<StateMachineStore>((set) => ({
       triggerState = 'AIMING';
     }
     set({ trackerState, triggerState });
-  }
+  },
+  
+  setActiveTab: (activeTab) => set({ activeTab })
 }));
