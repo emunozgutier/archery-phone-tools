@@ -40,7 +40,7 @@ interface GlobalState {
   clearSessions: () => void;
 }
 
-export const useGlobal = create<GlobalState>((set) => ({
+export const useGlobal = create<GlobalState>((set, get) => ({
   isOnboarded: false,
   isMockActive: false,
   mockPitch: -60,
@@ -166,10 +166,19 @@ export const useGlobal = create<GlobalState>((set) => ({
     });
   },
   
-  deleteSession: (id) => {
+  deleteSession: (id: string) => {
     useErrorLog.getState().addLog(`Deleting session: ${id}`);
+    const session = get().sessions.find((s: ArcherySession) => s.id === id);
+    if (session?.videoUrl) {
+      try {
+        URL.revokeObjectURL(session.videoUrl);
+        useErrorLog.getState().addLog(`Revoked video URL for deleted session ${id}`);
+      } catch (e) {
+        useErrorLog.getState().addLog(`Failed to revoke video URL for session ${id}`, 'warn', String(e));
+      }
+    }
     set((state) => {
-      const updated = state.sessions.filter((s) => s.id !== id);
+      const updated = state.sessions.filter((s: ArcherySession) => s.id !== id);
       try {
         localStorage.setItem('archery_sessions', JSON.stringify(updated));
       } catch (e) {
@@ -181,6 +190,16 @@ export const useGlobal = create<GlobalState>((set) => ({
   
   clearSessions: () => {
     useErrorLog.getState().addLog('Clearing all saved sessions...');
+    const { sessions } = get();
+    sessions.forEach((session: ArcherySession) => {
+      if (session.videoUrl) {
+        try {
+          URL.revokeObjectURL(session.videoUrl);
+        } catch (e) {
+          // ignore
+        }
+      }
+    });
     try {
       localStorage.removeItem('archery_sessions');
     } catch (e) {

@@ -340,6 +340,14 @@ function App() {
   };
 
   const handleDiscardPostShot = () => {
+    if (tempSessionData?.videoUrl) {
+      try {
+        URL.revokeObjectURL(tempSessionData.videoUrl);
+        useErrorLog.getState().addLog('Revoked temporary video URL for discarded shot.');
+      } catch (e) {
+        // ignore
+      }
+    }
     setTempSessionData(null);
     setClickCoord(null);
     setAppState('active');
@@ -861,15 +869,25 @@ function App() {
                   padding: '14px',
                   fontSize: '14px',
                   borderRadius: '10px',
-                  background: clickCoord ? 'linear-gradient(135deg, var(--steady), #2ecc71)' : 'rgba(255,255,255,0.05)',
-                  color: clickCoord ? '#fff' : 'var(--text-secondary)',
-                  cursor: clickCoord ? 'pointer' : 'not-allowed',
-                  boxShadow: clickCoord ? '0 4px 15px rgba(46,204,113,0.3)' : 'none'
+                  background: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                    ? 'linear-gradient(135deg, var(--steady), #2ecc71)'
+                    : 'rgba(255,255,255,0.05)',
+                  color: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                    ? '#fff'
+                    : 'var(--text-secondary)',
+                  cursor: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                    ? 'pointer'
+                    : 'not-allowed',
+                  boxShadow: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                    ? '0 4px 15px rgba(46,204,113,0.3)'
+                    : 'none'
                 }}
-                disabled={!clickCoord}
+                disabled={!clickCoord || (tempSessionData?.type === 'video' && !tempSessionData?.videoUrl)}
                 onClick={handleSavePostShot}
               >
-                💾 Save Arrow Release
+                {tempSessionData?.type === 'video' && !tempSessionData?.videoUrl
+                  ? '⏳ Compiling video segment...'
+                  : '💾 Save Arrow Release'}
               </button>
 
               <button

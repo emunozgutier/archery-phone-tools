@@ -146,11 +146,7 @@ export const useCameraRecorderStore = create<CameraRecorderState>((set, get) => 
   },
   
   resetVideo: () => {
-    const { recordedVideoUrl } = get();
-    if (recordedVideoUrl) {
-      URL.revokeObjectURL(recordedVideoUrl);
-      set({ recordedVideoUrl: null });
-    }
+    set({ recordedVideoUrl: null });
     videoChunksRef.current = [];
   }
 }));
