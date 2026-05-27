@@ -9,9 +9,9 @@ import {
   latestMagnetRef,
   rollingBufferRef,
   triggerHapticSingle,
-  triggerHapticDouble,
   triggerHapticPulseShort
 } from '../store/useSensors';
+import type { TrackerState } from '../store/useSensors';
 
 export interface SensorDataPoint {
   timestamp: number;
@@ -64,16 +64,104 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
 
     // Ref-based state variables to prevent closures from holding stale values
     const triggerStateRef = { current: useSensorsStore.getState().triggerState };
+    const trackerStateRef = { current: useSensorsStore.getState().trackerState };
+    const stateTimestampRef = { current: Date.now() };
     const calibrationRef = { current: useSensorsStore.getState().calibration };
     const isRecordingRef = { current: useSensorsStore.getState().isRecording };
-    const lastDownTimeRef = { current: 0 };
 
     // Keep trigger values synced in refs for high-frequency access
     const unsubscribe = useSensorsStore.subscribe((state) => {
       triggerStateRef.current = state.triggerState;
+      trackerStateRef.current = state.trackerState;
       calibrationRef.current = state.calibration;
       isRecordingRef.current = state.isRecording;
     });
+
+    const transitionTo = (nextState: TrackerState) => {
+      addLog(`Tracker transition: ${trackerStateRef.current} -> ${nextState}`);
+      trackerStateRef.current = nextState;
+      stateTimestampRef.current = Date.now();
+      useSensorsStore.getState().setTrackerState(nextState);
+    };
+
+    const evaluateStateMachine = () => {
+      const now = Date.now();
+      const currentPitch = latestOrientationRef.current.beta;
+      const config = calibrationRef.current;
+      
+      const isDown = Math.abs(currentPitch - config.downPitch) < config.pitchTolerance * 1.5;
+      const isAiming = Math.abs(currentPitch - config.aimPitch) < config.pitchTolerance;
+
+      const currentState = trackerStateRef.current;
+      const elapsed = now - stateTimestampRef.current;
+
+      switch (currentState) {
+        case 'idle':
+          if (isDown) {
+            transitionTo('enter_state_armed');
+          }
+          break;
+
+        case 'enter_state_armed':
+          if (isDown) {
+            if (elapsed >= 2000) {
+              transitionTo('stable_state_armed');
+              triggerHapticPulseShort();
+            }
+          } else {
+            transitionTo('idle');
+          }
+          break;
+
+        case 'stable_state_armed':
+          if (!isDown) {
+            transitionTo('moving_to_state_aim');
+          }
+          break;
+
+        case 'moving_to_state_aim':
+          if (isAiming) {
+            transitionTo('enter_aiming_aim');
+          } else if (elapsed > 3000) {
+            transitionTo('idle'); // timeout, draw cycle aborted
+          }
+          break;
+
+        case 'enter_aiming_aim':
+          if (isAiming) {
+            if (elapsed >= 1000) {
+              transitionTo('stable_state_aim');
+              triggerHapticSingle();
+              addLog("Auto-Record: Peak aiming steady state reached (starting capture).");
+              if (callbacksRef.current.onAutoTriggerStart) {
+                callbacksRef.current.onAutoTriggerStart();
+              }
+            }
+          } else {
+            transitionTo('moving_to_state_aim');
+          }
+          break;
+
+        case 'stable_state_aim':
+          if (!isAiming) {
+            transitionTo('exit_aiming_aim');
+          }
+          break;
+
+        case 'exit_aiming_aim':
+          if (elapsed >= 3000) {
+            addLog("Auto-Record: Follow-through complete (stopping capture).");
+            if (callbacksRef.current.onAutoTriggerStop) {
+              callbacksRef.current.onAutoTriggerStop();
+            }
+            transitionTo('idle');
+          }
+          break;
+
+        default:
+          break;
+      }
+    };
 
     const handleOrientation = (event: DeviceOrientationEvent) => {
       const heading = (event as unknown as { webkitCompassHeading?: number }).webkitCompassHeading || (360 - (event.alpha || 0));
@@ -89,61 +177,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       latestOrientationRef.current = newOrientation;
 
       // --- AUTO-TRIGGER DETECTOR ENGINE ---
-      const now = Date.now();
-      const currentPitch = newOrientation.beta;
-      const config = calibrationRef.current;
-      const currentTrigger = triggerStateRef.current;
-
-      const isDown = Math.abs(currentPitch - config.downPitch) < config.pitchTolerance * 1.5;
-      
-      if (isDown) {
-        if (currentTrigger !== 'ARMED' && currentTrigger !== 'IDLE') {
-          // If aiming, but pointed bow down, stop recording
-          if (isRecordingRef.current) {
-            triggerHapticDouble();
-            addLog("Auto-Record trigger: bow lowered (stop).");
-            if (callbacksRef.current.onAutoTriggerStop) {
-              callbacksRef.current.onAutoTriggerStop();
-            }
-          }
-          useSensorsStore.getState().setTriggerState('ARMED');
-          lastDownTimeRef.current = now;
-        } else if (currentTrigger === 'IDLE') {
-          if (lastDownTimeRef.current === 0) {
-            lastDownTimeRef.current = now;
-          } else if (now - lastDownTimeRef.current > config.minDownTimeMs) {
-            useSensorsStore.getState().setTriggerState('ARMED');
-            triggerHapticPulseShort();
-            addLog("Auto-Record trigger: armed and ready.");
-          }
-        }
-      } else {
-        const isAiming = Math.abs(currentPitch - config.aimPitch) < config.pitchTolerance;
-
-        if (isAiming) {
-          if (currentTrigger === 'ARMED') {
-            useSensorsStore.getState().setTriggerState('AIMING');
-            triggerHapticSingle();
-            addLog("Auto-Record trigger: bow raised to aiming level (start).");
-            if (callbacksRef.current.onAutoTriggerStart) {
-              callbacksRef.current.onAutoTriggerStart();
-            }
-          }
-        } else {
-          const isWayOff = Math.abs(currentPitch - config.aimPitch) > config.pitchTolerance * 2.2;
-          if (isWayOff && currentTrigger === 'AIMING') {
-            if (isRecordingRef.current) {
-              triggerHapticDouble();
-              addLog("Auto-Record trigger: bow lowered or offline (stop).");
-              if (callbacksRef.current.onAutoTriggerStop) {
-                callbacksRef.current.onAutoTriggerStop();
-              }
-            }
-            useSensorsStore.getState().setTriggerState('IDLE');
-            lastDownTimeRef.current = 0;
-          }
-        }
-      }
+      evaluateStateMachine();
     };
 
     const handleMotion = (event: DeviceMotionEvent) => {
@@ -206,6 +240,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
 
     // Only update standard React/Zustand state at the user-defined frequency to prevent mobile throttling.
     const throttleInterval = setInterval(() => {
+      evaluateStateMachine();
       useSensorsStore.setState({
         orientation: { ...latestOrientationRef.current },
         vibrationIndex: latestVibrationRef.current,
@@ -246,6 +281,8 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     setCalibration: store.setCalibration,
     triggerState: store.triggerState,
     setTriggerState: store.setTriggerState,
+    trackerState: store.trackerState,
+    setTrackerState: store.setTrackerState,
     calibratePosition,
     startRecording: store.startRecording,
     stopRecording: store.stopRecording

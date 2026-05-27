@@ -944,6 +944,7 @@ function App() {
                     roll={currentRoll}
                     heading={currentHeading}
                     triggerState={sensors.triggerState}
+                    trackerState={sensors.trackerState}
                     isRecording={sensors.isRecording || camera.isRecordingVideo}
                     calibration={sensors.calibration}
                     onStopRecording={handleManualRecordToggle}

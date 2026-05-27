@@ -5,6 +5,7 @@ interface HUDOverlayProps {
   roll: number;
   heading: number;
   triggerState: 'IDLE' | 'ARMED' | 'AIMING';
+  trackerState?: 'idle' | 'enter_state_armed' | 'stable_state_armed' | 'moving_to_state_aim' | 'enter_aiming_aim' | 'stable_state_aim' | 'exit_aiming_aim';
   isRecording: boolean;
   calibration: { downPitch: number; aimPitch: number; pitchTolerance: number };
   onStopRecording?: () => void;
@@ -15,6 +16,7 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   roll,
   heading,
   triggerState,
+  trackerState,
   isRecording,
   calibration,
   onStopRecording
@@ -140,9 +142,28 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
             background: 'rgba(10, 11, 16, 0.75)',
             border: '1px solid rgba(255, 255, 255, 0.1)'
           }}>
-            {triggerState === 'AIMING' && <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 'bold' }}>🎯 AIM ACTIVE</span>}
-            {triggerState === 'ARMED' && <span style={{ fontSize: '12px', color: 'var(--steady)', fontWeight: 'bold' }} className="pulsing">🏹 ARMED - LIFT</span>}
-            {triggerState === 'IDLE' && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>POINT BOW DOWN</span>}
+            {(() => {
+              switch (trackerState) {
+                case 'idle':
+                  return <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>⬇️ POINT BOW DOWN</span>;
+                case 'enter_state_armed':
+                  return <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 'bold' }} className="pulsing">⏳ ARMING... HOLD</span>;
+                case 'stable_state_armed':
+                  return <span style={{ fontSize: '12px', color: 'var(--steady)', fontWeight: 'bold' }} className="pulsing">🏹 ARMED - LIFT</span>;
+                case 'moving_to_state_aim':
+                  return <span style={{ fontSize: '12px', color: 'var(--blue)', fontWeight: 'bold' }}>🏹 DRAWING & LIFTING...</span>;
+                case 'enter_aiming_aim':
+                  return <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 'bold' }}>🎯 AIM ACQUIRED</span>;
+                case 'stable_state_aim':
+                  return <span style={{ fontSize: '12px', color: 'var(--steady)', fontWeight: 'bold' }}>🟢 PEAK AIM ACTIVE</span>;
+                case 'exit_aiming_aim':
+                  return <span style={{ fontSize: '12px', color: 'var(--unstable)', fontWeight: 'bold' }} className="blinking">🏹 FOLLOW-THROUGH</span>;
+                default:
+                  if (triggerState === 'AIMING') return <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 'bold' }}>🎯 AIM ACTIVE</span>;
+                  if (triggerState === 'ARMED') return <span style={{ fontSize: '12px', color: 'var(--steady)', fontWeight: 'bold' }} className="pulsing">🏹 ARMED - LIFT</span>;
+                  return <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>POINT BOW DOWN</span>;
+              }
+            })()}
           </div>
         )}
       </div>
