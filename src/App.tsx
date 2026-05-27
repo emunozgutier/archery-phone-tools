@@ -967,6 +967,7 @@ function App() {
                       }}>
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
                           const isActive = currentArrowNumber === num;
+                          const isAlreadyShot = sessions.some((s) => s.arrowNumber === num);
                           return (
                             <button
                               key={num}
@@ -975,11 +976,21 @@ function App() {
                                 useErrorLog.getState().addLog(`Active arrow set to: #${num}`);
                               }}
                               style={{
-                                border: 'none',
+                                border: isActive 
+                                  ? 'none' 
+                                  : isAlreadyShot 
+                                    ? '1px solid rgba(255, 214, 10, 0.4)' 
+                                    : 'none',
                                 background: isActive 
                                   ? 'linear-gradient(135deg, var(--steady), #2ecc71)' 
-                                  : 'rgba(255,255,255,0.05)',
-                                color: isActive ? '#fff' : 'var(--text-secondary)',
+                                  : isAlreadyShot 
+                                    ? 'rgba(255, 214, 10, 0.15)' 
+                                    : 'rgba(255,255,255,0.05)',
+                                color: isActive 
+                                  ? '#fff' 
+                                  : isAlreadyShot 
+                                    ? '#ffd60a' 
+                                    : 'var(--text-secondary)',
                                 fontSize: '11px',
                                 fontWeight: 'bold',
                                 height: '24px',
@@ -989,7 +1000,11 @@ function App() {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 transition: 'all 0.15s ease',
-                                boxShadow: isActive ? '0 0 8px rgba(46,204,113,0.4)' : 'none'
+                                boxShadow: isActive 
+                                  ? '0 0 8px rgba(46,204,113,0.4)' 
+                                  : isAlreadyShot 
+                                    ? 'inset 0 0 4px rgba(255, 214, 10, 0.1)' 
+                                    : 'none'
                               }}
                             >
                               {num}
