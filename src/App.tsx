@@ -78,6 +78,16 @@ function App() {
 
   // Hook initializations
   const camera = useCameraRecorder();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Maintain the video element's srcObject connection without re-binding on every render
+  useEffect(() => {
+    if (videoRef.current && camera.stream) {
+      if (videoRef.current.srcObject !== camera.stream) {
+        videoRef.current.srcObject = camera.stream;
+      }
+    }
+  }, [camera.stream]);
 
   // Hoisted callback refs to avoid access-before-declaration and hoisting lint errors in useSensors hook
   const autoRecordStartRef = useRef<() => void>(() => {});
@@ -92,9 +102,6 @@ function App() {
   // Sync hoisted callback refs inside an effect body to keep the render phase pure and compliant with React 19 ref assignment rules
   useEffect(() => {
     autoRecordStartRef.current = () => {
-      if (activeTab === 'tracker' && camera.cameraActive) {
-        camera.startVideoRecording();
-      }
       sensors.startRecording();
     };
 
@@ -120,10 +127,6 @@ function App() {
       };
 
       setTempSessionData(tempData);
-
-      if (camera.isRecordingVideo) {
-        camera.stopVideoRecording();
-      }
 
       setAppState('post_shot');
       setShowDownWarning('stopped');
@@ -378,15 +381,8 @@ function App() {
 
       setTempSessionData(tempData);
 
-      if (camera.cameraActive) {
-        camera.stopVideoRecording();
-      }
-
       setAppState('post_shot');
     } else {
-      if (camera.cameraActive) {
-        camera.startVideoRecording();
-      }
       sensors.startRecording();
     }
   };
@@ -401,6 +397,33 @@ function App() {
       }
     }
   }, [activeTab, isOnboarded, isMockActive, isCameraEnabled, camera]);
+
+  // Unified effect to start/stop video recording based on aiming state and session active status
+  useEffect(() => {
+    if (activeTab === 'tracker' && camera.cameraActive && !isMockActive) {
+      if (sensors.isRecording && sensors.triggerState === 'AIMING') {
+        if (!camera.isRecordingVideo) {
+          camera.startVideoRecording();
+        }
+      } else {
+        if (camera.isRecordingVideo) {
+          camera.stopVideoRecording();
+        }
+      }
+    } else {
+      if (camera.isRecordingVideo) {
+        camera.stopVideoRecording();
+      }
+    }
+  }, [
+    sensors.isRecording,
+    sensors.triggerState,
+    camera.cameraActive,
+    camera.isRecordingVideo,
+    activeTab,
+    isMockActive,
+    camera
+  ]);
 
   const renderCalibrationMatrix = () => {
     const c = sensors.calibration;
@@ -968,9 +991,7 @@ function App() {
                     </div>
                   ) : camera.stream ? (
                     <video
-                      ref={(el) => {
-                        if (el && camera.stream) el.srcObject = camera.stream;
-                      }}
+                      ref={videoRef}
                       autoPlay
                       playsInline
                       muted
