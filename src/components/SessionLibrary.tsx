@@ -40,6 +40,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
   const [editArrowX, setEditArrowX] = useState<number | undefined>(undefined);
   const [editArrowY, setEditArrowY] = useState<number | undefined>(undefined);
   const [expandedSets, setExpandedSets] = useState<{ [key: number]: boolean }>({});
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
   
   // Wizard States
   const [wizardUnscored, setWizardUnscored] = useState<ArcherySession[]>([]);
@@ -120,13 +121,56 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const getSessionDateKey = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const uniqueDates = Array.from(
+    new Set(sessions.map(s => getSessionDateKey(s.timestamp)))
+  ).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+  const filteredSessions = sessions.filter(session => {
+    if (selectedDateFilter === 'all') return true;
+    return getSessionDateKey(session.timestamp) === selectedDateFilter;
+  });
+
   return (
     <div className="scrollable">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div style={{ textAlign: 'left' }}>
           <h2 className="header-title">Session History</h2>
           <p className="subtitle">Review your aim stability and video recordings.</p>
         </div>
+        
+        {sessions.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>📅 Date:</span>
+            <select
+              value={selectedDateFilter}
+              onChange={(e) => setSelectedDateFilter(e.target.value)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-glass)',
+                borderRadius: '16px',
+                color: '#fff',
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                outline: 'none',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+              }}
+            >
+              <option value="all" style={{ background: '#1c1c1e' }}>All Dates</option>
+              {uniqueDates.map(dateStr => (
+                <option key={dateStr} value={dateStr} style={{ background: '#1c1c1e' }}>
+                  {dateStr}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {sessions.length === 0 ? (
@@ -141,11 +185,23 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
             Go to the Tracker or Recorder tabs, point your bow down to arm, then raise to start auto-recording!
           </p>
         </div>
+      ) : filteredSessions.length === 0 ? (
+        <div className="glass-panel" style={{
+          textAlign: 'center',
+          padding: '40px 20px',
+          color: 'var(--text-secondary)'
+        }}>
+          <div style={{ fontSize: '36px', marginBottom: '12px' }}>📅</div>
+          <h3 style={{ color: '#fff', fontSize: '16px', marginBottom: '8px' }}>No Sessions on this Date</h3>
+          <p style={{ fontSize: '13px', lineHeight: '1.4' }}>
+            Try selecting another date or "All Dates" from the menu.
+          </p>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Unscored Group Collapsible */}
           {(() => {
-            const unscoredSessions = sessions.filter(s => !s.isScored);
+            const unscoredSessions = filteredSessions.filter(s => !s.isScored);
             if (unscoredSessions.length === 0) return null;
             const isUnscoredExpanded = expandedSets[-1] !== false;
             return (
@@ -302,7 +358,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
 
           {/* Scored Sets list */}
           {(() => {
-            const scoredSessions = sessions.filter(s => s.isScored);
+            const scoredSessions = filteredSessions.filter(s => s.isScored);
             const setsMap: { [key: number]: ArcherySession[] } = {};
             scoredSessions.forEach(s => {
               const setNum = s.setNumber || 1;
@@ -314,7 +370,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
               .map(Number)
               .sort((a, b) => b - a);
               
-            if (setNumbers.length === 0 && sessions.filter(s => !s.isScored).length === 0) {
+            if (setNumbers.length === 0 && filteredSessions.filter(s => !s.isScored).length === 0) {
               return (
                 <div className="glass-panel" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
                   <div style={{ fontSize: '36px', marginBottom: '12px' }}>🎯</div>
