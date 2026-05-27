@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useGlobal } from '../store/useGlobal';
 
 interface HUDOverlayProps {
   pitch: number;
@@ -22,6 +23,8 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   onStopRecording
 }) => {
   const [recordSeconds, setRecordSeconds] = useState(0);
+  const { sessions, currentArrowNumber } = useGlobal();
+  const isAlreadyShot = sessions.some((s) => s.arrowNumber === currentArrowNumber);
 
   useEffect(() => {
     if (!isRecording) {
@@ -145,6 +148,9 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
             {(() => {
               switch (trackerState) {
                 case 'idle':
+                  if (isAlreadyShot) {
+                    return <span style={{ fontSize: '12px', color: 'var(--unstable)', fontWeight: 'bold' }} className="blinking">⚠️ ARROW SHOT - SELECT UNUSED</span>;
+                  }
                   return <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>⬇️ POINT BOW DOWN</span>;
                 case 'enter_state_armed':
                   return <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 'bold' }} className="pulsing">⏳ ARMING... HOLD</span>;

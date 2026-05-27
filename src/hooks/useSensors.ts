@@ -102,7 +102,11 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       switch (currentState) {
         case 'idle':
           if (isDown) {
-            transitionTo('enter_state_armed');
+            const { sessions, currentArrowNumber } = useGlobal.getState();
+            const isAlreadyShot = sessions.some((s) => s.arrowNumber === currentArrowNumber);
+            if (!isAlreadyShot) {
+              transitionTo('enter_state_armed');
+            }
           }
           break;
 
