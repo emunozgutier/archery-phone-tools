@@ -4,13 +4,16 @@ import type { SensorDataPoint } from '../hooks/useSensors';
 interface SensorChartProps {
   rollingBufferRef: React.MutableRefObject<SensorDataPoint[]> | { current: SensorDataPoint[] };
   height?: number;
-  showVibrationOnly?: boolean;
+  calibration?: {
+    gravityDominantAxis: 'x' | 'y' | 'z' | null;
+    magnetDominantAxis: 'x' | 'y' | 'z' | null;
+  };
 }
 
 export const SensorChart: React.FC<SensorChartProps> = ({
   rollingBufferRef,
   height = 140,
-  showVibrationOnly = false
+  calibration
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -34,6 +37,22 @@ export const SensorChart: React.FC<SensorChartProps> = ({
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    // Helpers to resolve component angles relative to primary fields in degrees (0-180)
+    const getDegrees = (vec: { x: number; y: number; z: number } | null | undefined, axis: 'x' | 'y' | 'z') => {
+      if (!vec) return 90;
+      const norm = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) || 1;
+      const val = vec[axis];
+      const clamped = Math.max(-1, Math.min(1, val / norm));
+      return Math.round(Math.acos(clamped) * (180 / Math.PI));
+    };
+
+    // Premium axis color palette matching our matrix diagnostic dashboard
+    const getAxisColor = (axis: 'x' | 'y' | 'z') => {
+      if (axis === 'x') return '#fc0'; // gold
+      if (axis === 'y') return '#007aff'; // blue
+      return '#34c759'; // teal/green
+    };
+
     // Dynamic 60fps drawing loop
     const draw = () => {
       const width = canvas.width / window.devicePixelRatio;
@@ -43,7 +62,7 @@ export const SensorChart: React.FC<SensorChartProps> = ({
       ctx.clearRect(0, 0, width, heightVal);
 
       // Draw background grid lines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
       ctx.lineWidth = 1;
       
       const gridRows = 4;
@@ -79,17 +98,19 @@ export const SensorChart: React.FC<SensorChartProps> = ({
       const maxPoints = 120; // 2 seconds of 60fps data
       const spacing = width / (maxPoints - 1);
 
-      // --- 1. Draw Vibration Tremor Waveform ---
-      ctx.lineWidth = 2.5;
-      
-      // Paint glowing vibration path
+      // Resolve calibrated dominant tracking axes
+      const gAxis = calibration?.gravityDominantAxis || 'y';
+      const mAxis = calibration?.magnetDominantAxis || 'z';
+
+      // --- 1. Draw Stability Waveform (Emerald hold timeline 0-100%) ---
+      ctx.lineWidth = 2;
       ctx.beginPath();
+      
       buffer.forEach((pt, idx) => {
-        // Map vibration index (0-100) to Canvas coordinate (y goes down, so 100 is bottom, 0 is top)
-        // Actually, we want low vibration (steady) at the bottom, and high vibration (shake) at the top!
         const x = idx * spacing;
-        const normValue = pt.vibration / 100; // 0 to 1
-        const y = heightVal - (normValue * (heightVal - 20)) - 10;
+        const stability = 100 - pt.vibration; // Map shakiness (0-100) to Stability (100-0)
+        const normValue = stability / 100;
+        const y = heightVal - (normValue * (heightVal - 30)) - 8;
         
         if (idx === 0) {
           ctx.moveTo(x, y);
@@ -97,86 +118,75 @@ export const SensorChart: React.FC<SensorChartProps> = ({
           ctx.lineTo(x, y);
         }
       });
-      
-      // Draw glow shadow
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = 'rgba(255, 59, 48, 0.4)';
-      ctx.strokeStyle = '#ff3b30'; // red
-      
-      // Color vibration path dynamically (gradient from green to orange to red)
-      const pathGradient = ctx.createLinearGradient(0, heightVal, 0, 0);
-      pathGradient.addColorStop(0.1, '#34c759'); // green (steady)
-      pathGradient.addColorStop(0.5, '#ff9500'); // orange (tremor)
-      pathGradient.addColorStop(0.9, '#ff3b30'); // red (shake)
-      
-      ctx.strokeStyle = pathGradient;
-      ctx.stroke();
-      
-      // Reset shadows
-      ctx.shadowBlur = 0;
 
-      // Fill area under vibration curve with transparency
-      ctx.lineTo( (buffer.length - 1) * spacing, heightVal);
+      // Draw premium glow shadow on holding stability
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(52, 199, 89, 0.25)';
+      ctx.strokeStyle = '#34c759'; // steady green
+      ctx.stroke();
+      ctx.shadowBlur = 0; // reset
+
+      // Translucent hold area filling
+      ctx.lineTo((buffer.length - 1) * spacing, heightVal);
       ctx.lineTo(0, heightVal);
       ctx.closePath();
       const fillGrad = ctx.createLinearGradient(0, heightVal, 0, 0);
       fillGrad.addColorStop(0, 'rgba(52, 199, 89, 0.0)');
-      fillGrad.addColorStop(0.5, 'rgba(255, 149, 0, 0.05)');
-      fillGrad.addColorStop(1, 'rgba(255, 59, 48, 0.15)');
+      fillGrad.addColorStop(1, 'rgba(52, 199, 89, 0.08)');
       ctx.fillStyle = fillGrad;
       ctx.fill();
 
-      // --- 2. Draw Pitch & Roll Overlaid Timeline (If not vibration-only) ---
-      if (!showVibrationOnly) {
-        // We want to overlay pitch/roll timeline.
-        // Pitch/roll are usually between -90 and 90 degrees.
-        // Let's draw pitch in blue and roll in gold.
-        const midY = heightVal / 2;
-        const degScale = (heightVal - 30) / 180; // scale -90 to 90
+      // --- 2. Draw Gravity Component Angle for Picked Axis (0-180°) ---
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = getAxisColor(gAxis);
+      ctx.beginPath();
+      buffer.forEach((pt, idx) => {
+        const x = idx * spacing;
+        const gAngle = getDegrees({ x: pt.accX, y: pt.accY, z: pt.accZ }, gAxis);
+        const y = heightVal - ((gAngle / 180) * (heightVal - 30)) - 8;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
 
-        // Reference center-line (ideal level aiming position)
-        ctx.strokeStyle = 'rgba(255, 204, 0, 0.15)';
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(0, midY);
-        ctx.lineTo(width, midY);
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset dash
+      // --- 3. Draw Magnet Component Angle for Picked Axis (0-180°) ---
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = getAxisColor(mAxis);
+      ctx.beginPath();
+      buffer.forEach((pt, idx) => {
+        const x = idx * spacing;
+        const mAngle = getDegrees({ x: pt.magX, y: pt.magY, z: pt.magZ }, mAxis);
+        const y = heightVal - ((mAngle / 180) * (heightVal - 30)) - 8;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
 
-        // Draw Pitch Timeline
-        ctx.strokeStyle = 'rgba(0, 122, 255, 0.7)'; // neon blue
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        buffer.forEach((pt, idx) => {
-          const x = idx * spacing;
-          // Normalize pitch (-90 to 90)
-          const clampedPitch = Math.max(-90, Math.min(90, pt.pitch));
-          const y = midY - (clampedPitch * degScale);
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+      // --- 4. Draw Diagnostics Telemetry HUD Readout ---
+      const latestPt = buffer[buffer.length - 1];
+      const latestStability = 100 - latestPt.vibration;
+      const latestGAngle = getDegrees({ x: latestPt.accX, y: latestPt.accY, z: latestPt.accZ }, gAxis);
+      const latestMAngle = getDegrees({ x: latestPt.magX, y: latestPt.magY, z: latestPt.magZ }, mAxis);
 
-        // Draw HUD indicators
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.font = '10px JetBrains Mono, monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText('vibe', 8, 14);
-        ctx.fillStyle = 'rgba(0, 122, 255, 0.7)';
-        ctx.fillText('pitch', 8, 26);
-      } else {
-        // Just print latest vibe index
-        const latestPoint = buffer[buffer.length - 1];
-        ctx.font = '12px JetBrains Mono, monospace';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.textAlign = 'right';
-        ctx.fillText(`VIBE INDEX: ${latestPoint.vibration}`, width - 10, 18);
-      }
+      ctx.font = '9px JetBrains Mono, monospace';
+      ctx.textBaseline = 'top';
+
+      // Left side: stability score percentage
+      ctx.fillStyle = '#34c759';
+      ctx.textAlign = 'left';
+      ctx.fillText(`🟢 STABILITY: ${latestStability}%`, 8, 8);
+
+      // Right side: picked components angles
+      ctx.textAlign = 'right';
+      ctx.fillStyle = getAxisColor(gAxis);
+      ctx.fillText(`🎯 Grav ${gAxis.toUpperCase()}: ${latestGAngle}°`, width - 8, 8);
+      ctx.fillStyle = getAxisColor(mAxis);
+      ctx.fillText(`🧲 Mag ${mAxis.toUpperCase()}: ${latestMAngle}°`, width - 8, 18);
 
       animationFrameRef.current = requestAnimationFrame(draw);
     };
 
-    draw();
+    animationFrameRef.current = requestAnimationFrame(draw);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
@@ -184,7 +194,7 @@ export const SensorChart: React.FC<SensorChartProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [showVibrationOnly, bufferRef]);
+  }, [bufferRef, calibration]);
 
   return (
     <div style={{

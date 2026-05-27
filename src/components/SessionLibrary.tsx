@@ -360,10 +360,9 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
               <SensorChart
                 rollingBufferRef={{ current: selectedSession.sensorData }}
                 height={160}
-                showVibrationOnly={false}
               />
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '6px', textAlign: 'left' }}>
-                💡 Blue line tracks tilt (Pitch), showing when you drew and held the bow. Glowing red fill shows tremor levels. Consistent flat lines signify supreme stability!
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '6px', textAlign: 'left', lineHeight: '1.4' }}>
+                💡 Glowing green filled curve represents stability hold index (0-100%). Overlaid color-coded curves track the exact angles of your calibrated dominant gravity and magnet axes. Flat, steady lines signify peak aiming hold!
               </p>
             </div>
 

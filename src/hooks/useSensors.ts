@@ -205,9 +205,9 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
         roll: Math.round(latestOrientationRef.current.gamma),
         heading: latestOrientationRef.current.heading,
         vibration: mappedVibration,
-        accX: Math.round(rawX * 100) / 100,
-        accY: Math.round(rawY * 100) / 100,
-        accZ: Math.round(rawZ * 100) / 100,
+        accX: latestAccelRef.current.x,
+        accY: latestAccelRef.current.y,
+        accZ: latestAccelRef.current.z,
         magX: Math.round(mX * 100) / 100,
         magY: Math.round(mY * 100) / 100,
         magZ: Math.round(mZ * 100) / 100

@@ -1026,7 +1026,11 @@ function App() {
                     <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Stability Telemetry Timeline</span>
                     <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Aim Hold History</span>
                   </div>
-                  <SensorChart rollingBufferRef={sensors.rollingBufferRef} height={85} showVibrationOnly={true} />
+                  <SensorChart
+                    rollingBufferRef={sensors.rollingBufferRef}
+                    height={85}
+                    calibration={sensors.calibration}
+                  />
                 </div>
 
               </div>
