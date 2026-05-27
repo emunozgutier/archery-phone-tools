@@ -55,7 +55,7 @@ function App() {
   const mockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [appVersion, setAppVersion] = useState<{ version: string; dateTime: string } | null>(null);
-  const [showDownWarning, setShowDownWarning] = useState<'stopped' | 'blocked' | null>(null);
+  const [showBlockedWarning, setShowBlockedWarning] = useState<boolean>(false);
   const [clickCoord, setClickCoord] = useState<{ x: number; y: number; score: number } | null>(null);
 
   // Reset currentArrowNumber back to 1 when there are no unscored arrows left
@@ -79,13 +79,13 @@ function App() {
 
   // Auto-dismiss the bow-down warning popup after 4 seconds
   useEffect(() => {
-    if (showDownWarning) {
+    if (showBlockedWarning) {
       const timer = setTimeout(() => {
-        setShowDownWarning(null);
+        setShowBlockedWarning(false);
       }, 4000);
       return () => clearTimeout(timer);
     }
-  }, [showDownWarning]);
+  }, [showBlockedWarning]);
 
   // Hoisted callback refs to avoid access-before-declaration and hoisting lint errors in useSensors hook
   const autoRecordStartRef = useRef<() => void>(() => {});
@@ -136,7 +136,6 @@ function App() {
       }
 
       setAppState('post_shot');
-      setShowDownWarning('stopped');
     };
   }, [camera, sensors, activeTab, isMockActive, setAppState, setTempSessionData]);
 
@@ -328,7 +327,7 @@ function App() {
   const handleManualRecordToggle = () => {
     // If phone is pointed down, block start and show popup
     if (!sensors.isRecording && currentPitch < -35) {
-      setShowDownWarning('blocked');
+      setShowBlockedWarning(true);
       useErrorLog.getState().addLog('Blocked recording start: phone is pointed down', 'warn');
       return;
     }
@@ -362,16 +361,18 @@ function App() {
     }
   };
 
-  // Manage camera lifecycles based on preference and onboarding status
+  // Manage camera lifecycles based on preference, onboarding status, and active tab
   useEffect(() => {
-    if (isOnboarded && !isMockActive) {
+    if (isOnboarded && !isMockActive && activeTab === 'tracker') {
       if (isCameraEnabled) {
         camera.startCamera();
       } else {
         camera.stopCamera();
       }
+    } else {
+      camera.stopCamera();
     }
-  }, [isOnboarded, isMockActive, isCameraEnabled, camera]);
+  }, [isOnboarded, isMockActive, isCameraEnabled, activeTab, camera]);
 
   const renderCalibrationMatrix = () => {
     const c = sensors.calibration;
@@ -829,10 +830,17 @@ function App() {
       ) : (
         <>
           {/* Viewport Render Area */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{
+            flex: 1,
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            background: (activeTab === 'sessions' || activeTab === 'calibration') ? '#000000' : 'transparent'
+          }}>
             
             {/* Share camera stream or mock background as the global viewport background! */}
-            {isCameraEnabled && !isMockActive && camera.stream ? (
+            {isCameraEnabled && !isMockActive && camera.stream && activeTab === 'tracker' ? (
               <video
                 ref={(el) => {
                   if (el && camera.stream && el.srcObject !== camera.stream) {
@@ -852,7 +860,7 @@ function App() {
                   zIndex: 1
                 }}
               />
-            ) : isCameraEnabled && isMockActive ? (
+            ) : isCameraEnabled && isMockActive && activeTab === 'tracker' ? (
               <div style={{
                 width: '100%',
                 height: '100%',
@@ -1180,6 +1188,19 @@ function App() {
                         onClick={() => {
                           if (window.confirm("Re-calibrate aiming angles? You will be redirected to the calibration wizard.")) {
                             calibrationStore.resetCalibration();
+                            sensors.setCalibration({
+                              restingGravity: null,
+                              aimingGravity: null,
+                              restingMagnet: null,
+                              aimingMagnet: null,
+                              gravityDominantAxis: null,
+                              magnetDominantAxis: null
+                            });
+                            try {
+                              localStorage.removeItem('archery_sensor_calibration');
+                            } catch (e) {
+                              // ignore
+                            }
                             setAppState('calibrating');
                           }
                         }}
@@ -1500,7 +1521,7 @@ function App() {
             )}
 
             {/* Centered Glassmorphic Bow-Down Warning Popup Overlay */}
-            {showDownWarning && (
+            {showBlockedWarning && (
               <div style={{
                 position: 'absolute',
                 top: '50%',
@@ -1508,7 +1529,7 @@ function App() {
                 transform: 'translate(-50%, -50%)',
                 zIndex: 100,
                 background: 'rgba(26, 26, 36, 0.95)',
-                border: showDownWarning === 'blocked' ? '1px solid var(--tremor)' : '1px solid var(--unstable)',
+                border: '1px solid var(--tremor)',
                 borderRadius: '16px',
                 padding: '20px',
                 width: '260px',
@@ -1520,15 +1541,13 @@ function App() {
                 animation: 'pulse 3s infinite ease-in-out'
               }}>
                 <div style={{ fontSize: '32px', marginBottom: '12px' }}>
-                  {showDownWarning === 'blocked' ? '🚫' : '🛑'}
+                  🚫
                 </div>
                 <h3 style={{ color: '#fff', fontSize: '15px', marginBottom: '8px' }}>
-                  {showDownWarning === 'blocked' ? 'Cannot Start' : 'Recording Stopped'}
+                  Cannot Start
                 </h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.4', marginBottom: '16px' }}>
-                  {showDownWarning === 'blocked' 
-                    ? 'Recording cannot be started while the bow is pointed down. Lift your bow to aiming level first.' 
-                    : 'Recording was stopped and saved because the bow was pointed down.'}
+                  Recording cannot be started while the bow is pointed down. Lift your bow to aiming level first.
                 </p>
                 <button
                   className="btn-primary"
@@ -1537,13 +1556,13 @@ function App() {
                     padding: '8px 16px',
                     fontSize: '12px',
                     borderRadius: '8px',
-                    background: showDownWarning === 'blocked' ? 'var(--blue)' : 'var(--unstable)',
+                    background: 'var(--blue)',
                     border: 'none',
                     color: '#fff',
                     fontWeight: 'bold',
                     cursor: 'pointer'
                   }}
-                  onClick={() => setShowDownWarning(null)}
+                  onClick={() => setShowBlockedWarning(false)}
                 >
                   Dismiss
                 </button>

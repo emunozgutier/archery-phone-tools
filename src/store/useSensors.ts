@@ -93,17 +93,8 @@ export const triggerHapticPulseShort = () => {
   }
 };
 
-export const useSensorsStore = create<SensorsState>((set, get) => ({
-  isSupported: typeof window !== 'undefined' && 'DeviceOrientationEvent' in window && 'DeviceMotionEvent' in window,
-  permissionGranted: null,
-  
-  orientation: { alpha: 0, beta: 0, gamma: 0, heading: 0 },
-  vibrationIndex: 0,
-  rawAccel: { x: 0, y: 0, z: 0 },
-  rawMagnet: { x: 0, y: 0, z: 0 },
-  isRecording: false,
-  
-  calibration: {
+const loadCalibrationFromStorage = (): CalibrationConfig => {
+  const defaultCalibration: CalibrationConfig = {
     downPitch: -55,
     aimPitch: 5,
     pitchTolerance: 15,
@@ -114,7 +105,31 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
     aimingMagnet: null,
     gravityDominantAxis: null,
     magnetDominantAxis: null
-  },
+  };
+  
+  try {
+    const saved = localStorage.getItem('archery_sensor_calibration');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...defaultCalibration, ...parsed };
+    }
+  } catch (e) {
+    // ignore
+  }
+  return defaultCalibration;
+};
+
+export const useSensorsStore = create<SensorsState>((set, get) => ({
+  isSupported: typeof window !== 'undefined' && 'DeviceOrientationEvent' in window && 'DeviceMotionEvent' in window,
+  permissionGranted: null,
+  
+  orientation: { alpha: 0, beta: 0, gamma: 0, heading: 0 },
+  vibrationIndex: 0,
+  rawAccel: { x: 0, y: 0, z: 0 },
+  rawMagnet: { x: 0, y: 0, z: 0 },
+  isRecording: false,
+  
+  calibration: loadCalibrationFromStorage(),
   
   sensorHistory: [],
   
@@ -127,9 +142,15 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
   
   setPermissionGranted: (permissionGranted) => set({ permissionGranted }),
   
-  setCalibration: (config) => set((state) => ({
-    calibration: { ...state.calibration, ...config }
-  })),
+  setCalibration: (config) => set((state) => {
+    const updated = { ...state.calibration, ...config };
+    try {
+      localStorage.setItem('archery_sensor_calibration', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+    return { calibration: updated };
+  }),
   
   setIsRecording: (isRecording) => set({ isRecording }),
   
