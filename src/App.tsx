@@ -405,8 +405,17 @@ function App() {
   const renderCalibrationMatrix = () => {
     const c = sensors.calibration;
     
-    const renderCell = (val: number | null | undefined, axis: 'x' | 'y' | 'z', dominant: 'x' | 'y' | 'z' | null, defaultColor: string, isLive: boolean) => {
-      if (val === null || val === undefined) {
+    const getDegrees = (vec: { x: number; y: number; z: number } | null | undefined, axis: 'x' | 'y' | 'z') => {
+      if (!vec) return null;
+      const norm = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z) || 1;
+      const val = vec[axis];
+      const clamped = Math.max(-1, Math.min(1, val / norm));
+      return Math.round(Math.acos(clamped) * (180 / Math.PI));
+    };
+
+    const renderCell = (vec: { x: number; y: number; z: number } | null | undefined, axis: 'x' | 'y' | 'z', dominant: 'x' | 'y' | 'z' | null, defaultColor: string, isLive: boolean) => {
+      const degVal = getDegrees(vec, axis);
+      if (degVal === null || degVal === undefined) {
         return (
           <div style={{
             display: 'inline-block',
@@ -451,7 +460,7 @@ function App() {
           boxShadow: shadow,
           transition: 'all 0.2s ease'
         }}>
-          {val.toFixed(2)}
+          {degVal}°
         </div>
       );
     };
@@ -518,17 +527,17 @@ function App() {
                 <td style={{ padding: '6px 4px', color: '#f8fafc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: 'var(--gold)', fontSize: '12px' }}>⚖️</span> Gravity
                 </td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity.x, 'x', null, 'var(--gold)', true)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity.y, 'y', null, 'var(--blue)', true)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity.z, 'z', null, 'var(--steady)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity, 'x', null, 'var(--gold)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity, 'y', null, 'var(--blue)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity, 'z', null, 'var(--steady)', true)}</td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 <td style={{ padding: '6px 4px', color: '#f8fafc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: 'var(--steady)', fontSize: '12px' }}>🧲</span> Magnet
                 </td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet.x, 'x', null, 'var(--gold)', true)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet.y, 'y', null, 'var(--blue)', true)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet.z, 'z', null, 'var(--steady)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet, 'x', null, 'var(--gold)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet, 'y', null, 'var(--blue)', true)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet, 'z', null, 'var(--steady)', true)}</td>
               </tr>
               
               {/* Resting Position Header */}
@@ -566,17 +575,17 @@ function App() {
                 <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>⚖️</span> Gravity DOWN
                 </td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity?.x, 'x', c.gravityDominantAxis, 'var(--gold)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity?.y, 'y', c.gravityDominantAxis, 'var(--blue)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity?.z, 'z', c.gravityDominantAxis, 'var(--steady)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity, 'x', c.gravityDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity, 'y', c.gravityDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingGravity, 'z', c.gravityDominantAxis, 'var(--steady)', false)}</td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>🧲</span> Magnet DOWN
                 </td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet?.x, 'x', c.magnetDominantAxis, 'var(--gold)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet?.y, 'y', c.magnetDominantAxis, 'var(--blue)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet?.z, 'z', c.magnetDominantAxis, 'var(--steady)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet, 'x', c.magnetDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet, 'y', c.magnetDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.restingMagnet, 'z', c.magnetDominantAxis, 'var(--steady)', false)}</td>
               </tr>
               
               {/* Aiming Position Header */}
@@ -614,17 +623,17 @@ function App() {
                 <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>⚖️</span> Gravity AIM
                 </td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity?.x, 'x', c.gravityDominantAxis, 'var(--gold)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity?.y, 'y', c.gravityDominantAxis, 'var(--blue)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity?.z, 'z', c.gravityDominantAxis, 'var(--steady)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity, 'x', c.gravityDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity, 'y', c.gravityDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingGravity, 'z', c.gravityDominantAxis, 'var(--steady)', false)}</td>
               </tr>
               <tr>
                 <td style={{ padding: '6px 4px', color: 'var(--text-secondary)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>🧲</span> Magnet AIM
                 </td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet?.x, 'x', c.magnetDominantAxis, 'var(--gold)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet?.y, 'y', c.magnetDominantAxis, 'var(--blue)', false)}</td>
-                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet?.z, 'z', c.magnetDominantAxis, 'var(--steady)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet, 'x', c.magnetDominantAxis, 'var(--gold)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet, 'y', c.magnetDominantAxis, 'var(--blue)', false)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(c.aimingMagnet, 'z', c.magnetDominantAxis, 'var(--steady)', false)}</td>
               </tr>
             </tbody>
           </table>
@@ -714,29 +723,7 @@ function App() {
               Let's calibrate the auto-trigger angles before you start shooting.
             </p>
 
-            {/* Live Orientation Horizontal Telemetry Bar */}
-            <div style={{
-              background: 'rgba(0,0,0,0.2)',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              fontFamily: 'var(--mono)',
-              color: 'var(--text-secondary)',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              border: '1px solid rgba(255,255,255,0.03)'
-            }}>
-              <span style={{ fontSize: '10px', fontWeight: 'bold' }}>LIVE ROTATION:</span>
-              <span>
-                Pitch: <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong>
-                <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
-                Roll: <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong>
-                <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
-                Heading: <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong>
-              </span>
-            </div>
+
 
             {/* Live 6-Axis Matrix Grid */}
             {renderCalibrationMatrix()}
@@ -1080,31 +1067,7 @@ function App() {
 
                 <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   
-                  {/* Real-time Angle Feedback */}
-                  <div className="glass-card" style={{ margin: 0, padding: '16px', background: 'rgba(255, 255, 255, 0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ textAlign: 'left' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>LIVE PHONE PITCH</span>
-                      <h3 style={{ color: 'var(--gold)', fontSize: '24px', fontWeight: 800, margin: '4px 0 0 0' }}>
-                        {Math.round(currentPitch)}°
-                      </h3>
-                    </div>
-                    
-                    <div style={{
-                      background: 'rgba(0,0,0,0.2)',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--mono)',
-                      color: 'var(--text-secondary)',
-                      textAlign: 'right',
-                      border: '1px solid rgba(255,255,255,0.03)'
-                    }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', textAlign: 'right' }}>X, Y, Z ROTATION ANGLES</span>
-                      <span>X (Pitch): <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong> </span>
-                      <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong> </span>
-                      <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
-                    </div>
-                  </div>
+
 
                   {/* Live 6-Axis Matrix Grid */}
                   {renderCalibrationMatrix()}
