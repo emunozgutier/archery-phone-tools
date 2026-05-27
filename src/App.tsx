@@ -279,7 +279,8 @@ function App() {
       distance: preferredDistance,
       score: clickCoord ? clickCoord.score : 0,
       arrowX: clickCoord ? clickCoord.x : 0,
-      arrowY: clickCoord ? clickCoord.y : 0
+      arrowY: clickCoord ? clickCoord.y : 0,
+      isScored: false
     } as ArcherySession;
     
     addSession(finalSession);
