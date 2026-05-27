@@ -6,6 +6,9 @@ import babel from '@rolldown/plugin-babel'
 export default defineConfig(({ command }) => {
   return {
     base: command === 'serve' ? './' : 'https://cdn.jsdelivr.net/gh/emunozgutier/archery-phone-tools@main/dist/',
+    server: {
+      host: true,
+    },
     plugins: [
       react(),
       babel({ presets: [reactCompilerPreset()] })
