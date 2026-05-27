@@ -78,16 +78,6 @@ function App() {
 
   // Hook initializations
   const camera = useCameraRecorder();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  // Maintain the video element's srcObject connection without re-binding on every render
-  useEffect(() => {
-    if (videoRef.current && camera.stream) {
-      if (videoRef.current.srcObject !== camera.stream) {
-        videoRef.current.srcObject = camera.stream;
-      }
-    }
-  }, [camera.stream]);
 
   // Hoisted callback refs to avoid access-before-declaration and hoisting lint errors in useSensors hook
   const autoRecordStartRef = useRef<() => void>(() => {});
@@ -905,7 +895,11 @@ function App() {
             {/* Share camera stream or mock background as the global viewport background! */}
             {isCameraEnabled && !isMockActive && camera.stream ? (
               <video
-                ref={videoRef}
+                ref={(el) => {
+                  if (el && camera.stream && el.srcObject !== camera.stream) {
+                    el.srcObject = camera.stream;
+                  }
+                }}
                 autoPlay
                 playsInline
                 muted
