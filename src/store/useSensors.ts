@@ -10,6 +10,7 @@ interface SensorsState {
   orientation: { alpha: number; beta: number; gamma: number; heading: number };
   vibrationIndex: number;
   rawAccel: { x: number; y: number; z: number };
+  rawMagnet: { x: number; y: number; z: number };
   triggerState: 'IDLE' | 'ARMED' | 'AIMING';
   isRecording: boolean;
   
@@ -22,7 +23,12 @@ interface SensorsState {
   setIsRecording: (recording: boolean) => void;
   
   requestPermissions: () => Promise<boolean>;
-  calibratePosition: (type: 'DOWN' | 'AIM', currentBeta: number) => void;
+  calibratePosition: (
+    type: 'DOWN' | 'AIM',
+    currentBeta: number,
+    gravity: { x: number; y: number; z: number },
+    magnet: { x: number; y: number; z: number }
+  ) => void;
   
   startRecording: () => void;
   stopRecording: () => SensorDataPoint[];
@@ -36,6 +42,20 @@ interface SensorsState {
 export const latestOrientationRef = { current: { alpha: 0, beta: 0, gamma: 0, heading: 0 } };
 export const latestVibrationRef = { current: 0 };
 export const latestAccelRef = { current: { x: 0, y: 0, z: 0 } };
+export const latestMagnetRef = { current: { x: 0, y: 0, z: 0 } };
+
+function getDominantAxis(
+  v1: { x: number; y: number; z: number },
+  v2: { x: number; y: number; z: number }
+): 'x' | 'y' | 'z' {
+  const dx = Math.abs(v2.x - v1.x);
+  const dy = Math.abs(v2.y - v1.y);
+  const dz = Math.abs(v2.z - v1.z);
+  
+  if (dx >= dy && dx >= dz) return 'x';
+  if (dy >= dx && dy >= dz) return 'y';
+  return 'z';
+}
 export const rollingBufferRef = { current: [] as SensorDataPoint[] };
 export const recordingBufferRef = { current: [] as SensorDataPoint[] };
 
@@ -65,6 +85,7 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
   orientation: { alpha: 0, beta: 0, gamma: 0, heading: 0 },
   vibrationIndex: 0,
   rawAccel: { x: 0, y: 0, z: 0 },
+  rawMagnet: { x: 0, y: 0, z: 0 },
   triggerState: 'IDLE',
   isRecording: false,
   
@@ -72,7 +93,13 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
     downPitch: -55,
     aimPitch: 5,
     pitchTolerance: 15,
-    minDownTimeMs: 1000
+    minDownTimeMs: 1000,
+    restingGravity: null,
+    aimingGravity: null,
+    restingMagnet: null,
+    aimingMagnet: null,
+    gravityDominantAxis: null,
+    magnetDominantAxis: null
   },
   
   sensorHistory: [],
@@ -130,14 +157,46 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
     }
   },
   
-  calibratePosition: (type, currentBeta) => {
+  calibratePosition: (type, currentBeta, gravity, magnet) => {
     const rounded = Math.round(currentBeta);
     if (type === 'DOWN') {
-      get().setCalibration({ downPitch: rounded });
-      useErrorLog.getState().addLog(`Calibrated BOW DOWN Pitch to: ${rounded}°`);
+      const updates: Partial<CalibrationConfig> = {
+        downPitch: rounded,
+        restingGravity: { ...gravity },
+        restingMagnet: { ...magnet }
+      };
+      
+      // Calculate dominant axis if both aiming and resting are set
+      const aimGrav = get().calibration.aimingGravity;
+      const aimMag = get().calibration.aimingMagnet;
+      if (aimGrav) {
+        updates.gravityDominantAxis = getDominantAxis(gravity, aimGrav);
+      }
+      if (aimMag) {
+        updates.magnetDominantAxis = getDominantAxis(magnet, aimMag);
+      }
+      
+      get().setCalibration(updates);
+      useErrorLog.getState().addLog(`Calibrated BOW DOWN: Pitch ${rounded}°, Gravity (${gravity.x}, ${gravity.y}, ${gravity.z}), Magnet (${magnet.x}, ${magnet.y}, ${magnet.z})`);
     } else {
-      get().setCalibration({ aimPitch: rounded });
-      useErrorLog.getState().addLog(`Calibrated AIMING Pitch to: ${rounded}°`);
+      const updates: Partial<CalibrationConfig> = {
+        aimPitch: rounded,
+        aimingGravity: { ...gravity },
+        aimingMagnet: { ...magnet }
+      };
+      
+      // Calculate dominant axis if both aiming and resting are set
+      const restGrav = get().calibration.restingGravity;
+      const restMag = get().calibration.restingMagnet;
+      if (restGrav) {
+        updates.gravityDominantAxis = getDominantAxis(restGrav, gravity);
+      }
+      if (restMag) {
+        updates.magnetDominantAxis = getDominantAxis(restMag, magnet);
+      }
+      
+      get().setCalibration(updates);
+      useErrorLog.getState().addLog(`Calibrated AIMING: Pitch ${rounded}°, Gravity (${gravity.x}, ${gravity.y}, ${gravity.z}), Magnet (${magnet.x}, ${magnet.y}, ${magnet.z})`);
     }
     triggerHapticPulseShort();
   },

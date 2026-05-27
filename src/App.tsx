@@ -254,6 +254,23 @@ function App() {
   const currentHeading = isMockActive ? 184 : sensors.orientation.heading;
   const currentVibration = isMockActive ? mockVibration : sensors.vibrationIndex;
 
+  // Master Gravity & Magnet readings (Mock overrides vs physical)
+  const currentGravity = isMockActive 
+    ? {
+        x: 0,
+        y: Math.round(9.81 * Math.cos((currentPitch * Math.PI) / 180) * 100) / 100,
+        z: Math.round(-9.81 * Math.sin((currentPitch * Math.PI) / 180) * 100) / 100
+      }
+    : sensors.rawAccel;
+
+  const currentMagnet = isMockActive
+    ? {
+        x: Math.round(Math.sin((currentHeading * Math.PI) / 180) * Math.cos((currentRoll * Math.PI) / 180) * 100) / 100,
+        y: Math.round(Math.cos((currentHeading * Math.PI) / 180) * Math.cos((currentPitch * Math.PI) / 180) * 100) / 100,
+        z: Math.round(-Math.sin((currentPitch * Math.PI) / 180) * 100) / 100
+      }
+    : sensors.rawMagnet || { x: 0, y: 0, z: 0 };
+
 
   // Click handler for interactive FITA target face
   const handleTargetClick = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
@@ -385,6 +402,124 @@ function App() {
     }
   }, [activeTab, isOnboarded, isMockActive, isCameraEnabled, camera]);
 
+  const renderCalibrationMatrix = () => {
+    const c = sensors.calibration;
+    
+    const formatVal = (val: number | null | undefined) => {
+      if (val === null || val === undefined) return <span style={{ color: 'var(--text-secondary)', opacity: 0.5 }}>—</span>;
+      return <strong style={{ fontFamily: 'var(--mono)', fontSize: '11px' }}>{val.toFixed(2)}</strong>;
+    };
+    
+    const getAxisHighlight = (axis: 'x' | 'y' | 'z', dominant: 'x' | 'y' | 'z' | null) => {
+      if (dominant === axis) {
+        return {
+          background: 'rgba(56, 189, 248, 0.15)',
+          border: '1px solid rgba(56, 189, 248, 0.4)',
+          borderRadius: '4px',
+          padding: '2px 6px',
+          color: '#38bdf8',
+          fontWeight: 'bold'
+        };
+      }
+      return { padding: '2px 6px' };
+    };
+
+    return (
+      <div className="glass-card" style={{ margin: '16px 0', padding: '16px', background: 'rgba(15, 23, 42, 0.4)', border: '1px solid var(--border-glass)' }}>
+        <h4 style={{ fontSize: '13px', color: '#fff', margin: '0 0 12px 0', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          📊 Sensor Vector Alignment Matrix (6-Axis)
+        </h4>
+        
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left', minWidth: '280px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
+                <th style={{ padding: '6px 4px' }}>Sensor / State</th>
+                <th style={{ padding: '6px 4px', color: 'var(--gold)' }}>X-Axis</th>
+                <th style={{ padding: '6px 4px', color: 'var(--blue)' }}>Y-Axis</th>
+                <th style={{ padding: '6px 4px', color: 'var(--steady)' }}>Z-Axis</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Live Measurements */}
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                <td style={{ padding: '8px 4px', color: '#f8fafc', fontWeight: '500' }}>🔴 Current Gravity</td>
+                <td style={{ padding: '8px 4px', color: 'var(--gold)' }}>{formatVal(currentGravity.x)}</td>
+                <td style={{ padding: '8px 4px', color: 'var(--blue)' }}>{formatVal(currentGravity.y)}</td>
+                <td style={{ padding: '8px 4px', color: 'var(--steady)' }}>{formatVal(currentGravity.z)}</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <td style={{ padding: '8px 4px', color: '#f8fafc', fontWeight: '500' }}>🔴 Current Magnet</td>
+                <td style={{ padding: '8px 4px', color: 'var(--gold)' }}>{formatVal(currentMagnet.x)}</td>
+                <td style={{ padding: '8px 4px', color: 'var(--blue)' }}>{formatVal(currentMagnet.y)}</td>
+                <td style={{ padding: '8px 4px', color: 'var(--steady)' }}>{formatVal(currentMagnet.z)}</td>
+              </tr>
+              
+              {/* Resting Position */}
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🏹 Resting Gravity</td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.gravityDominantAxis)}>{formatVal(c.restingGravity?.x)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.gravityDominantAxis)}>{formatVal(c.restingGravity?.y)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.gravityDominantAxis)}>{formatVal(c.restingGravity?.z)}</span></td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🏹 Resting Magnet</td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.magnetDominantAxis)}>{formatVal(c.restingMagnet?.x)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.magnetDominantAxis)}>{formatVal(c.restingMagnet?.y)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.magnetDominantAxis)}>{formatVal(c.restingMagnet?.z)}</span></td>
+              </tr>
+              
+              {/* Aiming Position */}
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🎯 Aiming Gravity</td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.gravityDominantAxis)}>{formatVal(c.aimingGravity?.x)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.gravityDominantAxis)}>{formatVal(c.aimingGravity?.y)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.gravityDominantAxis)}>{formatVal(c.aimingGravity?.z)}</span></td>
+              </tr>
+              <tr>
+                <td style={{ padding: '8px 4px', color: 'var(--text-secondary)' }}>🎯 Aiming Magnet</td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('x', c.magnetDominantAxis)}>{formatVal(c.aimingMagnet?.x)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('y', c.magnetDominantAxis)}>{formatVal(c.aimingMagnet?.y)}</span></td>
+                <td style={{ padding: '8px 4px' }}><span style={getAxisHighlight('z', c.magnetDominantAxis)}>{formatVal(c.aimingMagnet?.z)}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Dominant Axis Results Feedback */}
+        {(c.gravityDominantAxis || c.magnetDominantAxis) && (
+          <div style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            fontSize: '11px',
+            color: '#e2e8f0',
+            textAlign: 'left',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}>
+            <strong style={{ color: '#38bdf8', fontSize: '11.5px', display: 'block', marginBottom: '2px' }}>🎯 Calibration Insights:</strong>
+            {c.gravityDominantAxis && (
+              <div>
+                Gravity Axis with Most Change: <strong style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{c.gravityDominantAxis}-Axis</strong> 
+                <span style={{ color: 'var(--text-secondary)' }}> (Greatest change due to phone tilt)</span>
+              </div>
+            )}
+            {c.magnetDominantAxis && (
+              <div>
+                Magnet Axis with Most Change: <strong style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{c.magnetDominantAxis}-Axis</strong>
+                <span style={{ color: 'var(--text-secondary)' }}> (Greatest change in magnetic projection)</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       {appState === 'permissions' ? (
@@ -412,7 +547,7 @@ function App() {
             <div className="glass-card" style={{
               textAlign: 'left',
               padding: '16px',
-              borderLeft: sensors.calibration.downPitch !== -65 ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
+              borderLeft: sensors.calibration.restingGravity !== null ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
               marginBottom: '14px'
             }}>
               <h3 style={{ fontSize: '15px', color: '#fff', marginBottom: '4px' }}>1. Bow Resting Position</h3>
@@ -443,9 +578,9 @@ function App() {
               <button
                 className="btn-secondary"
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px' }}
-                onClick={() => sensors.calibratePosition('DOWN')}
+                onClick={() => sensors.calibratePosition('DOWN', currentPitch, currentGravity, currentMagnet)}
               >
-                {sensors.calibration.downPitch !== -65 ? `✓ Resting Calibrated (${sensors.calibration.downPitch}°)` : "🏹 Set Resting Angle"}
+                {sensors.calibration.restingGravity !== null ? `✓ Resting Calibrated (${sensors.calibration.downPitch}°)` : "🏹 Set Resting Angle"}
               </button>
             </div>
 
@@ -453,7 +588,7 @@ function App() {
             <div className="glass-card" style={{
               textAlign: 'left',
               padding: '16px',
-              borderLeft: sensors.calibration.aimPitch !== 0 ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
+              borderLeft: sensors.calibration.aimingGravity !== null ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
               marginBottom: '24px'
             }}>
               <h3 style={{ fontSize: '15px', color: '#fff', marginBottom: '4px' }}>2. Bow Aiming Position</h3>
@@ -484,11 +619,14 @@ function App() {
               <button
                 className="btn-secondary"
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px', borderColor: 'var(--gold)' }}
-                onClick={() => sensors.calibratePosition('AIM')}
+                onClick={() => sensors.calibratePosition('AIM', currentPitch, currentGravity, currentMagnet)}
               >
-                {sensors.calibration.aimPitch !== 0 ? `✓ Aiming Calibrated (${sensors.calibration.aimPitch}°)` : "🎯 Set Aiming Angle"}
+                {sensors.calibration.aimingGravity !== null ? `✓ Aiming Calibrated (${sensors.calibration.aimPitch}°)` : "🎯 Set Aiming Angle"}
               </button>
             </div>
+
+            {/* Live 6-Axis Matrix Grid */}
+            {renderCalibrationMatrix()}
 
             {/* Proceed button */}
             <button
@@ -498,12 +636,12 @@ function App() {
                 padding: '14px',
                 fontSize: '14px',
                 borderRadius: '12px',
-                background: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? 'linear-gradient(135deg, var(--steady), #2196f3)' : 'rgba(255,255,255,0.05)',
-                color: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? '#fff' : 'var(--text-secondary)',
-                boxShadow: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? '0 4px 15px rgba(46, 204, 113, 0.3)' : 'none',
-                cursor: sensors.calibration.downPitch !== -65 && sensors.calibration.aimPitch !== 0 ? 'pointer' : 'not-allowed'
+                background: sensors.calibration.restingGravity !== null && sensors.calibration.aimingGravity !== null ? 'linear-gradient(135deg, var(--steady), #2196f3)' : 'rgba(255,255,255,0.05)',
+                color: sensors.calibration.restingGravity !== null && sensors.calibration.aimingGravity !== null ? '#fff' : 'var(--text-secondary)',
+                boxShadow: sensors.calibration.restingGravity !== null && sensors.calibration.aimingGravity !== null ? '0 4px 15px rgba(46, 204, 113, 0.3)' : 'none',
+                cursor: sensors.calibration.restingGravity !== null && sensors.calibration.aimingGravity !== null ? 'pointer' : 'not-allowed'
               }}
-              disabled={sensors.calibration.downPitch === -65 || sensors.calibration.aimPitch === 0}
+              disabled={sensors.calibration.restingGravity === null || sensors.calibration.aimingGravity === null}
               onClick={() => {
                 setAppState('active');
                 setActiveTab('tracker');
@@ -860,18 +998,21 @@ function App() {
                     <button
                       className="btn-secondary"
                       style={{ padding: '12px 10px', fontSize: '13px', borderRadius: '12px' }}
-                      onClick={() => sensors.calibratePosition('DOWN')}
+                      onClick={() => sensors.calibratePosition('DOWN', currentPitch, currentGravity, currentMagnet)}
                     >
-                      🏹 Set Bow Down<br />({sensors.calibration.downPitch}°)
+                      🏹 Set Bow Down<br />({sensors.calibration.restingGravity !== null ? `${sensors.calibration.downPitch}°` : 'Not Set'})
                     </button>
                     <button
                       className="btn-secondary"
                       style={{ padding: '12px 10px', fontSize: '13px', borderRadius: '12px', borderColor: 'var(--gold)' }}
-                      onClick={() => sensors.calibratePosition('AIM')}
+                      onClick={() => sensors.calibratePosition('AIM', currentPitch, currentGravity, currentMagnet)}
                     >
-                      🎯 Set Aim Angle<br />({sensors.calibration.aimPitch}°)
+                      🎯 Set Aim Angle<br />({sensors.calibration.aimingGravity !== null ? `${sensors.calibration.aimPitch}°` : 'Not Set'})
                     </button>
                   </div>
+
+                  {/* Live 6-Axis Matrix Grid */}
+                  {renderCalibrationMatrix()}
 
                   {/* Tolerance adjuster */}
                   <div className="glass-card" style={{ margin: 0 }}>

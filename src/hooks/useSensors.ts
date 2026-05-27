@@ -6,6 +6,7 @@ import {
   latestOrientationRef,
   latestVibrationRef,
   latestAccelRef,
+  latestMagnetRef,
   rollingBufferRef,
   triggerHapticSingle,
   triggerHapticDouble,
@@ -31,6 +32,12 @@ export interface CalibrationConfig {
   aimPitch: number;
   pitchTolerance: number;
   minDownTimeMs: number;
+  restingGravity: { x: number; y: number; z: number } | null;
+  aimingGravity: { x: number; y: number; z: number } | null;
+  restingMagnet: { x: number; y: number; z: number } | null;
+  aimingMagnet: { x: number; y: number; z: number } | null;
+  gravityDominantAxis: 'x' | 'y' | 'z' | null;
+  magnetDominantAxis: 'x' | 'y' | 'z' | null;
 }
 
 export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: () => void) => {
@@ -186,6 +193,12 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       const mY = Math.cos(alphaRad) * Math.cos(betaRad);
       const mZ = -Math.sin(betaRad);
 
+      latestMagnetRef.current = {
+        x: Math.round(mX * 100) / 100,
+        y: Math.round(mY * 100) / 100,
+        z: Math.round(mZ * 100) / 100
+      };
+
       const currentPoint: SensorDataPoint = {
         timestamp: now,
         pitch: Math.round(latestOrientationRef.current.beta),
@@ -216,7 +229,8 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       useSensorsStore.setState({
         orientation: { ...latestOrientationRef.current },
         vibrationIndex: latestVibrationRef.current,
-        rawAccel: { ...latestAccelRef.current }
+        rawAccel: { ...latestAccelRef.current },
+        rawMagnet: { ...latestMagnetRef.current }
       });
     }, 1000 / sensorRefreshRate); // Dynamic refresh rate updates for HUD values
 
@@ -230,8 +244,11 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
   }, [store.permissionGranted, addLog, sensorRefreshRate]);
 
   // Calibration and direct actions
-  const calibratePosition = useCallback((type: 'DOWN' | 'AIM') => {
-    store.calibratePosition(type, latestOrientationRef.current.beta);
+  const calibratePosition = useCallback((type: 'DOWN' | 'AIM', pitchVal?: number, gravityVal?: { x: number; y: number; z: number }, magnetVal?: { x: number; y: number; z: number }) => {
+    const p = pitchVal !== undefined ? pitchVal : latestOrientationRef.current.beta;
+    const g = gravityVal || latestAccelRef.current;
+    const m = magnetVal || latestMagnetRef.current;
+    store.calibratePosition(type, p, g, m);
   }, [store]);
 
   return {
@@ -241,6 +258,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     orientation: store.orientation,
     vibrationIndex: store.vibrationIndex,
     rawAccel: store.rawAccel,
+    rawMagnet: store.rawMagnet,
     isRecording: store.isRecording,
     sensorHistory: store.sensorHistory,
     rollingBufferRef: rollingBufferRef,
