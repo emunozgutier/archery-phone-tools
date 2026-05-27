@@ -147,7 +147,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
           break;
 
         case 'stable_state_aim':
-          if (!isAiming) {
+          if (isDown) {
             transitionTo('exit_aiming_aim');
           }
           break;
