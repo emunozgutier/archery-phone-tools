@@ -30,7 +30,6 @@ interface SessionLibraryProps {
 export const SessionLibrary: React.FC<SessionLibraryProps> = ({
   sessions,
   onDeleteSession,
-  onClearSessions,
   onUpdateSession
 }) => {
   const [selectedSession, setSelectedSession] = useState<ArcherySession | null>(null);
@@ -128,31 +127,6 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
           <h2 className="header-title">Session History</h2>
           <p className="subtitle">Review your aim stability and video recordings.</p>
         </div>
-        {sessions.length > 0 && (
-          <button
-            className="btn-secondary"
-            style={{
-              padding: '6px 12px',
-              fontSize: '11px',
-              borderRadius: '20px',
-              color: 'var(--unstable)',
-              borderColor: 'rgba(255, 59, 48, 0.2)',
-              background: 'rgba(255, 59, 48, 0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              height: 'auto',
-              cursor: 'pointer'
-            }}
-            onClick={() => {
-              if (window.confirm("Are you sure you want to clear all recorded sessions? This action cannot be undone.")) {
-                onClearSessions();
-              }
-            }}
-          >
-            🗑️ Clear All
-          </button>
-        )}
       </div>
 
       {sessions.length === 0 ? (
@@ -169,64 +143,6 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Unscored score banner */}
-          {(() => {
-            const unscoredSessions = sessions.filter(s => !s.isScored);
-            if (unscoredSessions.length === 0) return null;
-            return (
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                marginBottom: '8px',
-                background: 'rgba(255, 204, 0, 0.08)',
-                border: '1px solid rgba(255, 204, 0, 0.25)',
-                borderRadius: '12px',
-                padding: '12px 16px',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: '0 4px 20px rgba(255, 204, 0, 0.05)',
-                textAlign: 'left'
-              }}>
-                <div>
-                  <h4 style={{ color: 'var(--gold)', margin: 0, fontSize: '14px', fontWeight: 'bold' }}>
-                    🎯 Unscored Shots Detected
-                  </h4>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    You have {unscoredSessions.length} recorded shots waiting to be scored and bundled.
-                  </p>
-                </div>
-                <button
-                  className="btn-primary"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--gold), #f39c12)',
-                    boxShadow: '0 4px 12px rgba(243,156,18,0.3)',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '20px',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    height: 'auto',
-                    pointerEvents: 'auto'
-                  }}
-                  onClick={() => {
-                    const sorted = [...unscoredSessions].sort((a, b) => a.timestamp - b.timestamp);
-                    setWizardUnscored(sorted);
-                    setWizardIndex(0);
-                    setWizardDistance(sorted[0].distance || 70);
-                    setWizardScore(0);
-                    setWizardArrowX(undefined);
-                    setWizardArrowY(undefined);
-                    setWizardAnswers([]);
-                  }}
-                >
-                  Score End ({unscoredSessions.length})
-                </button>
-              </div>
-            );
-          })()}
-
           {/* Unscored Group Collapsible */}
           {(() => {
             const unscoredSessions = sessions.filter(s => !s.isScored);
@@ -265,18 +181,56 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                       </p>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <span style={{
-                      fontSize: '9px',
-                      background: 'rgba(255, 204, 0, 0.15)',
-                      color: 'var(--gold)',
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      fontWeight: 'bold'
-                    }}>
-                      UNSCORED
-                    </span>
-                    <span style={{ fontSize: '16px', color: 'var(--text-secondary)', transform: isUnscoredExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
+                    <button
+                      className="btn-primary"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--gold), #f39c12)',
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        height: 'auto'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const sorted = [...unscoredSessions].sort((a, b) => a.timestamp - b.timestamp);
+                        setWizardUnscored(sorted);
+                        setWizardIndex(0);
+                        setWizardDistance(sorted[0].distance || 70);
+                        setWizardScore(0);
+                        setWizardArrowX(undefined);
+                        setWizardArrowY(undefined);
+                        setWizardAnswers([]);
+                      }}
+                    >
+                      🎯 Score
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        borderRadius: '20px',
+                        color: 'var(--unstable)',
+                        borderColor: 'rgba(255, 59, 48, 0.2)',
+                        background: 'rgba(255, 59, 48, 0.05)',
+                        cursor: 'pointer',
+                        height: 'auto'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Are you sure you want to delete all ${unscoredSessions.length} unscored shots? This cannot be undone.`)) {
+                          unscoredSessions.forEach(s => onDeleteSession(s.id));
+                        }
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
+                    <span style={{ fontSize: '16px', color: 'var(--text-secondary)', transform: isUnscoredExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '4px' }}>
                       ▼
                     </span>
                   </div>
