@@ -17,6 +17,7 @@ function App() {
   const {
     activeTab,
     setActiveTab,
+    isOnboarded,
     setIsOnboarded,
     isMockActive,
     setIsMockActive,
@@ -397,14 +398,16 @@ function App() {
     }
   };
 
-  // Manage camera lifecycles based on preference and permission status
+  // Manage camera lifecycles based on preference and onboarding status
   useEffect(() => {
-    if (sensors.permissionGranted === true && !isMockActive && isCameraEnabled) {
-      camera.startCamera();
-    } else {
-      camera.stopCamera();
+    if (isOnboarded && !isMockActive) {
+      if (isCameraEnabled) {
+        camera.startCamera();
+      } else {
+        camera.stopCamera();
+      }
     }
-  }, [sensors.permissionGranted, isMockActive, isCameraEnabled, camera]);
+  }, [isOnboarded, isMockActive, isCameraEnabled, camera]);
 
   const renderCalibrationMatrix = () => {
     const c = sensors.calibration;
