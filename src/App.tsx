@@ -533,8 +533,33 @@ function App() {
               
               {/* Resting Position Header */}
                <tr>
-                 <td colSpan={4} style={{ padding: '12px 4px 6px 4px', fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                   Resting Profile (DOWN)
+                 <td colSpan={4} style={{ padding: '12px 4px 6px 4px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <span style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                       Resting Profile (DOWN)
+                     </span>
+                     <button
+                       onClick={() => sensors.calibratePosition('DOWN', currentPitch, currentGravity, currentMagnet)}
+                       style={{
+                         background: c.restingGravity !== null ? 'rgba(52, 199, 89, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                         border: c.restingGravity !== null ? '1px solid rgba(52, 199, 89, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                         color: c.restingGravity !== null ? 'var(--steady)' : 'var(--text-primary)',
+                         fontSize: '9px',
+                         fontWeight: '700',
+                         padding: '4px 10px',
+                         borderRadius: '20px',
+                         cursor: 'pointer',
+                         display: 'flex',
+                         alignItems: 'center',
+                         gap: '4px',
+                         transition: 'all 0.2s ease',
+                         outline: 'none',
+                         WebkitTapHighlightColor: 'transparent'
+                       }}
+                     >
+                       {c.restingGravity !== null ? `✓ Calibrated (${c.downPitch}°)` : "🏹 Set Resting Angle"}
+                     </button>
+                   </div>
                  </td>
                </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
@@ -556,8 +581,33 @@ function App() {
               
               {/* Aiming Position Header */}
                <tr>
-                 <td colSpan={4} style={{ padding: '12px 4px 6px 4px', fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                   Aiming Profile (AIM)
+                 <td colSpan={4} style={{ padding: '12px 4px 6px 4px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <span style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                       Aiming Profile (AIM)
+                     </span>
+                     <button
+                       onClick={() => sensors.calibratePosition('AIM', currentPitch, currentGravity, currentMagnet)}
+                       style={{
+                         background: c.aimingGravity !== null ? 'rgba(52, 199, 89, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                         border: c.aimingGravity !== null ? '1px solid rgba(52, 199, 89, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                         color: c.aimingGravity !== null ? 'var(--steady)' : 'var(--text-primary)',
+                         fontSize: '9px',
+                         fontWeight: '700',
+                         padding: '4px 10px',
+                         borderRadius: '20px',
+                         cursor: 'pointer',
+                         display: 'flex',
+                         alignItems: 'center',
+                         gap: '4px',
+                         transition: 'all 0.2s ease',
+                         outline: 'none',
+                         WebkitTapHighlightColor: 'transparent'
+                       }}
+                     >
+                       {c.aimingGravity !== null ? `✓ Calibrated (${c.aimPitch}°)` : "🎯 Set Aiming Angle"}
+                     </button>
+                   </div>
                  </td>
                </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
@@ -664,86 +714,28 @@ function App() {
               Let's calibrate the auto-trigger angles before you start shooting.
             </p>
 
-            {/* Down Position Card */}
-            <div className="glass-card" style={{
-              textAlign: 'left',
-              padding: '16px',
-              borderLeft: sensors.calibration.restingGravity !== null ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
-              marginBottom: '14px'
+            {/* Live Orientation Horizontal Telemetry Bar */}
+            <div style={{
+              background: 'rgba(0,0,0,0.2)',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontFamily: 'var(--mono)',
+              color: 'var(--text-secondary)',
+              marginBottom: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              border: '1px solid rgba(255,255,255,0.03)'
             }}>
-              <h3 style={{ fontSize: '15px', color: '#fff', marginBottom: '4px' }}>1. Bow Resting Position</h3>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                Point your bow down to the ground. (Current Pitch: <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong>)
-              </p>
-              
-              <div style={{
-                background: 'rgba(0,0,0,0.2)',
-                padding: '8px 10px',
-                borderRadius: '8px',
-                fontSize: '10px',
-                fontFamily: 'var(--mono)',
-                color: 'var(--text-secondary)',
-                marginBottom: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                border: '1px solid rgba(255,255,255,0.03)'
-              }}>
-                <span>X, Y, Z Axis Angles:</span>
-                <span style={{ display: 'flex', gap: '8px' }}>
-                  <span>X (Pitch): <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong></span>
-                  <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong></span>
-                  <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
-                </span>
-              </div>
-
-              <button
-                className="btn-secondary"
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px' }}
-                onClick={() => sensors.calibratePosition('DOWN', currentPitch, currentGravity, currentMagnet)}
-              >
-                {sensors.calibration.restingGravity !== null ? `✓ Resting Calibrated (${sensors.calibration.downPitch}°)` : "🏹 Set Resting Angle"}
-              </button>
-            </div>
-
-            {/* Aim Position Card */}
-            <div className="glass-card" style={{
-              textAlign: 'left',
-              padding: '16px',
-              borderLeft: sensors.calibration.aimingGravity !== null ? '4px solid var(--steady)' : '4px solid rgba(255,255,255,0.1)',
-              marginBottom: '24px'
-            }}>
-              <h3 style={{ fontSize: '15px', color: '#fff', marginBottom: '4px' }}>2. Bow Aiming Position</h3>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                Hold your bow straight up at a target. (Current Pitch: <strong style={{ color: 'var(--blue)' }}>{Math.round(currentPitch)}°</strong>)
-              </p>
-              
-              <div style={{
-                background: 'rgba(0,0,0,0.2)',
-                padding: '8px 10px',
-                borderRadius: '8px',
-                fontSize: '10px',
-                fontFamily: 'var(--mono)',
-                color: 'var(--text-secondary)',
-                marginBottom: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                border: '1px solid rgba(255,255,255,0.03)'
-              }}>
-                <span>X, Y, Z Axis Angles:</span>
-                <span style={{ display: 'flex', gap: '8px' }}>
-                  <span>X (Pitch): <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong></span>
-                  <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong></span>
-                  <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
-                </span>
-              </div>
-
-              <button
-                className="btn-secondary"
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '13px', borderColor: 'var(--gold)' }}
-                onClick={() => sensors.calibratePosition('AIM', currentPitch, currentGravity, currentMagnet)}
-              >
-                {sensors.calibration.aimingGravity !== null ? `✓ Aiming Calibrated (${sensors.calibration.aimPitch}°)` : "🎯 Set Aiming Angle"}
-              </button>
+              <span style={{ fontSize: '10px', fontWeight: 'bold' }}>LIVE ROTATION:</span>
+              <span>
+                Pitch: <strong style={{ color: 'var(--gold)' }}>{Math.round(currentPitch)}°</strong>
+                <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
+                Roll: <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong>
+                <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span>
+                Heading: <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong>
+              </span>
             </div>
 
             {/* Live 6-Axis Matrix Grid */}
@@ -1112,24 +1104,6 @@ function App() {
                       <span>Y (Roll): <strong style={{ color: 'var(--blue)' }}>{Math.round(currentRoll)}°</strong> </span>
                       <span>Z (Heading): <strong style={{ color: 'var(--steady)' }}>{Math.round(currentHeading)}°</strong></span>
                     </div>
-                  </div>
-
-                  {/* Calibration position clickers */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <button
-                      className="btn-secondary"
-                      style={{ padding: '12px 10px', fontSize: '13px', borderRadius: '12px' }}
-                      onClick={() => sensors.calibratePosition('DOWN', currentPitch, currentGravity, currentMagnet)}
-                    >
-                      🏹 Set Bow Down<br />({sensors.calibration.restingGravity !== null ? `${sensors.calibration.downPitch}°` : 'Not Set'})
-                    </button>
-                    <button
-                      className="btn-secondary"
-                      style={{ padding: '12px 10px', fontSize: '13px', borderRadius: '12px', borderColor: 'var(--gold)' }}
-                      onClick={() => sensors.calibratePosition('AIM', currentPitch, currentGravity, currentMagnet)}
-                    >
-                      🎯 Set Aim Angle<br />({sensors.calibration.aimingGravity !== null ? `${sensors.calibration.aimPitch}°` : 'Not Set'})
-                    </button>
                   </div>
 
                   {/* Live 6-Axis Matrix Grid */}
