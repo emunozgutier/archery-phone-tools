@@ -96,21 +96,46 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
         alignItems: 'center',
         width: '100%'
       }}>
-        {/* Cardinal Heading Compass HUD */}
+        {/* Cardinal Heading, Pitch, and Roll HUD */}
         <div className="glass-card" style={{
-          padding: '6px 12px',
+          padding: '6px 14px',
           margin: 0,
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '14px',
           borderRadius: '20px',
           background: 'rgba(10, 11, 16, 0.75)',
           border: '1px solid rgba(255, 255, 255, 0.15)'
         }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold', letterSpacing: '1px' }}>HDG</span>
-          <span style={{ fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--gold)' }}>
-            {getCardinal(heading)}
-          </span>
+          {/* HDG */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>HDG</span>
+            <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--gold)' }}>
+              {getCardinal(heading)}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.15)' }} />
+
+          {/* PITCH */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>PITCH</span>
+            <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 700, color: isPitchBalanced ? 'var(--steady)' : '#fff' }}>
+              {pitch > 0 ? '+' : ''}{Math.round(pitch)}°
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.15)' }} />
+
+          {/* ROLL */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>ROLL</span>
+            <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 700, color: isRollBalanced ? 'var(--steady)' : '#fff' }}>
+              {roll > 0 ? '+' : ''}{Math.round(roll)}°
+            </span>
+          </div>
         </div>
 
         {/* Trigger Cues and Recording Status */}
@@ -316,39 +341,6 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
             <span>Stop Recording</span>
           </button>
         )}
-
-        {/* Dual Axis Balance Check Card */}
-        <div className="glass-card" style={{
-          margin: 0,
-          padding: '10px 14px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'rgba(10, 11, 16, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.08)'
-        }}>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div>
-              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>PITCH</span>
-              <span style={{ fontSize: '14px', color: isPitchBalanced ? 'var(--steady)' : '#fff', fontWeight: 'bold', fontFamily: 'var(--mono)' }}>
-                {pitch > 0 ? '+' : ''}{Math.round(pitch)}°
-              </span>
-            </div>
-            <div>
-              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>ROLL</span>
-              <span style={{ fontSize: '14px', color: isRollBalanced ? 'var(--steady)' : '#fff', fontWeight: 'bold', fontFamily: 'var(--mono)' }}>
-                {roll > 0 ? '+' : ''}{Math.round(roll)}°
-              </span>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>BALANCE</span>
-            <span style={{ fontSize: '12px', color: isPitchBalanced && isRollBalanced ? 'var(--steady)' : 'var(--gold)', fontWeight: 'bold', textTransform: 'uppercase' }}>
-              {isPitchBalanced && isRollBalanced ? '🟢 STEADY' : '⚠️ UNLEVEL'}
-            </span>
-          </div>
-        </div>
       </div>
       
     </div>
