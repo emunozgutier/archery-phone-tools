@@ -2,15 +2,6 @@ import { create } from 'zustand';
 import type { SensorDataPoint, CalibrationConfig } from '../hooks/useSensors';
 import { useErrorLog } from './useErrorLog';
 
-export type TrackerState = 
-  | 'idle' 
-  | 'enter_state_armed' 
-  | 'stable_state_armed' 
-  | 'moving_to_state_aim' 
-  | 'enter_aiming_aim' 
-  | 'stable_state_aim' 
-  | 'exit_aiming_aim';
-
 interface SensorsState {
   isSupported: boolean;
   permissionGranted: boolean | null;
@@ -20,8 +11,6 @@ interface SensorsState {
   vibrationIndex: number;
   rawAccel: { x: number; y: number; z: number };
   rawMagnet: { x: number; y: number; z: number };
-  triggerState: 'IDLE' | 'ARMED' | 'AIMING';
-  trackerState: TrackerState;
   isRecording: boolean;
   
   calibration: CalibrationConfig;
@@ -29,8 +18,6 @@ interface SensorsState {
   
   setPermissionGranted: (granted: boolean | null) => void;
   setCalibration: (config: Partial<CalibrationConfig>) => void;
-  setTriggerState: (state: SensorsState['triggerState']) => void;
-  setTrackerState: (state: TrackerState) => void;
   setIsRecording: (recording: boolean) => void;
   
   requestPermissions: () => Promise<boolean>;
@@ -97,8 +84,6 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
   vibrationIndex: 0,
   rawAccel: { x: 0, y: 0, z: 0 },
   rawMagnet: { x: 0, y: 0, z: 0 },
-  triggerState: 'IDLE',
-  trackerState: 'idle',
   isRecording: false,
   
   calibration: {
@@ -121,21 +106,6 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
   setCalibration: (config) => set((state) => ({
     calibration: { ...state.calibration, ...config }
   })),
-  
-  setTriggerState: (triggerState) => {
-    useErrorLog.getState().addLog(`Trigger state changed to: ${triggerState}`);
-    set({ triggerState });
-  },
-
-  setTrackerState: (trackerState) => {
-    let triggerState: 'IDLE' | 'ARMED' | 'AIMING' = 'IDLE';
-    if (trackerState === 'stable_state_armed' || trackerState === 'moving_to_state_aim') {
-      triggerState = 'ARMED';
-    } else if (trackerState === 'enter_aiming_aim' || trackerState === 'stable_state_aim' || trackerState === 'exit_aiming_aim') {
-      triggerState = 'AIMING';
-    }
-    set({ trackerState, triggerState });
-  },
   
   setIsRecording: (isRecording) => set({ isRecording }),
   

@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import type { ArcherySession } from '../components/SessionLibrary';
 import { useErrorLog } from './useErrorLog';
+import { useStateStore } from './useState';
 
 interface GlobalState {
   activeTab: 'tracker' | 'sessions' | 'calibration';
-  appState: 'permissions' | 'calibrating' | 'active' | 'post_shot';
   isOnboarded: boolean;
   isMockActive: boolean;
   mockPitch: number;
@@ -23,7 +23,6 @@ interface GlobalState {
   isCameraEnabled: boolean;
   
   setActiveTab: (tab: GlobalState['activeTab']) => void;
-  setAppState: (state: GlobalState['appState']) => void;
   setIsOnboarded: (onboarded: boolean) => void;
   setIsMockActive: (active: boolean) => void;
   setMockPitch: (pitch: number) => void;
@@ -45,7 +44,6 @@ interface GlobalState {
 
 export const useGlobal = create<GlobalState>((set) => ({
   activeTab: 'tracker',
-  appState: 'permissions',
   isOnboarded: false,
   isMockActive: false,
   mockPitch: -60,
@@ -101,15 +99,11 @@ export const useGlobal = create<GlobalState>((set) => ({
   
   setActiveTab: (activeTab) => set({ activeTab }),
   
-  setAppState: (appState) => {
-    useErrorLog.getState().addLog(`State machine transition to: ${appState.toUpperCase()}`);
-    set({ appState });
-  },
-  
   setIsOnboarded: (isOnboarded) => {
     useErrorLog.getState().addLog(`Onboarding status changed to: ${isOnboarded}`);
     const nextState = isOnboarded ? 'calibrating' : 'permissions';
-    set({ isOnboarded, appState: nextState });
+    set({ isOnboarded });
+    useStateStore.getState().setAppState(nextState);
   },
   
   setIsMockActive: (isMockActive) => {

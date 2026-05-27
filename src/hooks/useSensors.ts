@@ -11,7 +11,8 @@ import {
   triggerHapticSingle,
   triggerHapticPulseShort
 } from '../store/useSensors';
-import type { TrackerState } from '../store/useSensors';
+import { useStateStore } from '../store/useState';
+import type { TrackerState } from '../store/useState';
 
 export interface SensorDataPoint {
   timestamp: number;
@@ -42,6 +43,7 @@ export interface CalibrationConfig {
 
 export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: () => void) => {
   const store = useSensorsStore();
+  const stateStore = useStateStore();
   const addLog = useErrorLog(s => s.addLog);
   const sensorRefreshRate = useGlobal(s => s.sensorRefreshRate);
 
@@ -63,16 +65,18 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     addLog("Motion sensor listeners registering...");
 
     // Ref-based state variables to prevent closures from holding stale values
-    const triggerStateRef = { current: useSensorsStore.getState().triggerState };
-    const trackerStateRef = { current: useSensorsStore.getState().trackerState };
+    const triggerStateRef = { current: useStateStore.getState().triggerState };
+    const trackerStateRef = { current: useStateStore.getState().trackerState };
     const stateTimestampRef = { current: Date.now() };
     const calibrationRef = { current: useSensorsStore.getState().calibration };
     const isRecordingRef = { current: useSensorsStore.getState().isRecording };
 
     // Keep trigger values synced in refs for high-frequency access
-    const unsubscribe = useSensorsStore.subscribe((state) => {
+    const unsubscribe = useStateStore.subscribe((state) => {
       triggerStateRef.current = state.triggerState;
       trackerStateRef.current = state.trackerState;
+    });
+    const unsubscribeSensors = useSensorsStore.subscribe((state) => {
       calibrationRef.current = state.calibration;
       isRecordingRef.current = state.isRecording;
     });
@@ -81,7 +85,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       addLog(`Tracker transition: ${trackerStateRef.current} -> ${nextState}`);
       trackerStateRef.current = nextState;
       stateTimestampRef.current = Date.now();
-      useSensorsStore.getState().setTrackerState(nextState);
+      useStateStore.getState().setTrackerState(nextState);
     };
 
     const evaluateStateMachine = () => {
@@ -252,6 +256,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     return () => {
       addLog("Motion sensor listeners unregistering...");
       unsubscribe();
+      unsubscribeSensors();
       window.removeEventListener('deviceorientation', handleOrientation);
       window.removeEventListener('devicemotion', handleMotion);
       clearInterval(throttleInterval);
@@ -279,10 +284,10 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     rollingBufferRef: rollingBufferRef,
     calibration: store.calibration,
     setCalibration: store.setCalibration,
-    triggerState: store.triggerState,
-    setTriggerState: store.setTriggerState,
-    trackerState: store.trackerState,
-    setTrackerState: store.setTrackerState,
+    triggerState: stateStore.triggerState,
+    setTriggerState: (state: 'IDLE' | 'ARMED' | 'AIMING') => useStateStore.getState().setAppState(state === 'IDLE' ? 'permissions' : 'active'),
+    trackerState: stateStore.trackerState,
+    setTrackerState: stateStore.setTrackerState,
     calibratePosition,
     startRecording: store.startRecording,
     stopRecording: store.stopRecording

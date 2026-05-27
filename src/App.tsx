@@ -9,7 +9,7 @@ import { HUDOverlay } from './components/HUDOverlay';
 import { SessionLibrary } from './components/SessionLibrary';
 import { useGlobal } from './store/useGlobal';
 import { useErrorLog } from './store/useErrorLog';
-import { useSensorsStore } from './store/useSensors';
+import { useStateStore } from './store/useState';
 import './App.css';
 
 function App() {
@@ -35,8 +35,6 @@ function App() {
     cameraFps,
     setCameraFps,
     // State machine additions:
-    appState,
-    setAppState,
     currentArrowNumber,
     setCurrentArrowNumber,
     preferredDistance,
@@ -46,6 +44,8 @@ function App() {
     isCameraEnabled,
     setIsCameraEnabled
   } = useGlobal();
+
+  const { appState, setAppState } = useStateStore();
 
   const { logs, clearLogs } = useErrorLog();
   const mockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -164,7 +164,7 @@ function App() {
     
     // Set bow pointing straight down
     setMockPitch(-65);
-    useSensorsStore.getState().setTriggerState('ARMED');
+    useStateStore.getState().setTrackerState('stable_state_armed');
     
     let currentP = -65;
     const targetP = sensors.calibration.aimPitch;
@@ -179,7 +179,7 @@ function App() {
       } else {
         if (mockIntervalRef.current) clearInterval(mockIntervalRef.current as unknown as number);
         setMockPitch(targetP);
-        useSensorsStore.getState().setTriggerState('AIMING');
+        useStateStore.getState().setTrackerState('stable_state_aim');
         
         // Start simulated auto-recording
         sensors.startRecording();
@@ -191,7 +191,7 @@ function App() {
         setTimeout(() => {
           // Bow returns down
           setMockPitch(-65);
-          useSensorsStore.getState().setTriggerState('ARMED');
+          useStateStore.getState().setTrackerState('stable_state_armed');
           
           // Stop simulated recording and compile session
           const mockData = generateMockSensorLog();
@@ -1285,10 +1285,10 @@ function App() {
                             // Manually simulate trigger checks
                             const p = parseInt(e.target.value);
                             if (Math.abs(p - sensors.calibration.downPitch) < sensors.calibration.pitchTolerance) {
-                              useSensorsStore.getState().setTriggerState('ARMED');
+                              useStateStore.getState().setTrackerState('stable_state_armed');
                             } else if (Math.abs(p - sensors.calibration.aimPitch) < sensors.calibration.pitchTolerance) {
                               if (sensors.triggerState === 'ARMED') {
-                                useSensorsStore.getState().setTriggerState('AIMING');
+                                useStateStore.getState().setTrackerState('stable_state_aim');
                                 autoRecordStartRef.current();
                               }
                             }
