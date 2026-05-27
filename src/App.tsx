@@ -52,6 +52,14 @@ function App() {
   const [showDownWarning, setShowDownWarning] = useState<'stopped' | 'blocked' | null>(null);
   const [clickCoord, setClickCoord] = useState<{ x: number; y: number; score: number } | null>(null);
 
+  // Reset currentArrowNumber back to 1 when there are no unscored arrows left
+  useEffect(() => {
+    const unscoredCount = sessions.filter(s => !s.isScored).length;
+    if (unscoredCount === 0 && currentArrowNumber !== 1) {
+      setCurrentArrowNumber(1);
+    }
+  }, [sessions, currentArrowNumber, setCurrentArrowNumber]);
+
   useEffect(() => {
     fetch(import.meta.env.BASE_URL + 'version.json')
       .then((res) => (res.ok ? res.json() : null))
