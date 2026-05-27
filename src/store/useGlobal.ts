@@ -37,6 +37,7 @@ interface GlobalState {
   
   addSession: (session: ArcherySession) => void;
   deleteSession: (id: string) => void;
+  updateSession: (id: string, updates: Partial<ArcherySession>) => void;
   clearSessions: () => void;
 }
 
@@ -183,6 +184,19 @@ export const useGlobal = create<GlobalState>((set, get) => ({
         localStorage.setItem('archery_sessions', JSON.stringify(updated));
       } catch (e) {
         useErrorLog.getState().addLog('Failed to update sessions in localStorage after delete', 'error', String(e));
+      }
+      return { sessions: updated };
+    });
+  },
+  
+  updateSession: (id: string, updates: Partial<ArcherySession>) => {
+    useErrorLog.getState().addLog(`Updating session: ${id}`);
+    set((state) => {
+      const updated = state.sessions.map((s: ArcherySession) => s.id === id ? { ...s, ...updates } : s);
+      try {
+        localStorage.setItem('archery_sessions', JSON.stringify(updated));
+      } catch (e) {
+        useErrorLog.getState().addLog('Failed to update sessions in localStorage after update', 'error', String(e));
       }
       return { sessions: updated };
     });

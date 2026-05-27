@@ -22,15 +22,22 @@ interface SessionLibraryProps {
   sessions: ArcherySession[];
   onDeleteSession: (id: string) => void;
   onClearSessions: () => void;
+  onUpdateSession: (id: string, updates: Partial<ArcherySession>) => void;
 }
 
 export const SessionLibrary: React.FC<SessionLibraryProps> = ({
   sessions,
   onDeleteSession,
-  onClearSessions
+  onClearSessions,
+  onUpdateSession
 }) => {
   const [selectedSession, setSelectedSession] = useState<ArcherySession | null>(null);
   const [currentTimeOffset, setCurrentTimeOffset] = useState<number | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDistance, setEditDistance] = useState(70);
+  const [editScore, setEditScore] = useState(0);
+  const [editArrowX, setEditArrowX] = useState<number | undefined>(undefined);
+  const [editArrowY, setEditArrowY] = useState<number | undefined>(undefined);
 
   const getDegrees = (vec: { x: number; y: number; z: number } | null | undefined, axis: 'x' | 'y' | 'z') => {
     if (!vec) return 0;
@@ -66,6 +73,13 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
   const handleSelectSession = (session: ArcherySession | null) => {
     setSelectedSession(session);
     setCurrentTimeOffset(null);
+    setIsEditing(false);
+    if (session) {
+      setEditDistance(session.distance || 70);
+      setEditScore(session.score || 0);
+      setEditArrowX(session.arrowX);
+      setEditArrowY(session.arrowY);
+    }
   };
 
   // Helper to format date
@@ -266,60 +280,234 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
 
             {/* Arrow & Target group card */}
             {selectedSession.score !== undefined && (
-              <div className="glass-card" style={{ margin: '0 0 20px 0', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <h4 style={{ color: '#fff', fontSize: '14px', marginBottom: '12px', width: '100%', textAlign: 'left' }}>Arrow Release Scoring Detail</h4>
-                
-                <div style={{ display: 'flex', gap: '20px', alignItems: 'center', width: '100%', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  
-                  {/* FITA Target face */}
-                  <div style={{ position: 'relative', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-glass)' }}>
-                    <svg width="220" height="220" viewBox="0 0 220 220" style={{ display: 'block', margin: '0 auto' }}>
-                      {/* White rings */}
-                      <circle cx="110" cy="110" r="100" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
-                      <circle cx="110" cy="110" r="80" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
-                      {/* Black rings */}
-                      <circle cx="110" cy="110" r="64" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
-                      <circle cx="110" cy="110" r="48" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
-                      {/* Blue rings */}
-                      <circle cx="110" cy="110" r="36" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
-                      <circle cx="110" cy="110" r="26" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
-                      {/* Red rings */}
-                      <circle cx="110" cy="110" r="18" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
-                      <circle cx="110" cy="110" r="12" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
-                      {/* Gold rings */}
-                      <circle cx="110" cy="110" r="7" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
-                      <circle cx="110" cy="110" r="3.5" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
-                      {/* Center Cross */}
-                      <circle cx="110" cy="110" r="0.5" fill="#333" />
+              isEditing ? (
+                <div className="glass-card" style={{ margin: '0 0 20px 0', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '12px' }}>
+                    <h4 style={{ color: 'var(--gold)', fontSize: '14px', margin: 0, fontWeight: 'bold' }}>🎯 Plot Arrow Landing Position</h4>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Tap target below to score</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '20px', alignItems: 'center', width: '100%', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    
+                    {/* Interactive FITA Target face */}
+                    <div style={{ position: 'relative', background: 'rgba(0,0,0,0.5)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-glass)', boxShadow: '0 4px 15px rgba(0,0,0,0.4)', pointerEvents: 'auto' }}>
+                      <svg 
+                        width="220" 
+                        height="220" 
+                        viewBox="0 0 220 220" 
+                        style={{ display: 'block', margin: '0 auto', cursor: 'crosshair' }}
+                        onClick={(e) => {
+                          const svg = e.currentTarget;
+                          const rect = svg.getBoundingClientRect();
+                          const clickX = e.clientX - rect.left;
+                          const clickY = e.clientY - rect.top;
+                          const cx = 110;
+                          const cy = 110;
+                          const dx = clickX - cx;
+                          const dy = clickY - cy;
+                          const maxRadius = 100;
+                          const dist = Math.sqrt(dx * dx + dy * dy);
+                          
+                          let normX = dx;
+                          let normY = dy;
+                          if (dist > maxRadius) {
+                            const scale = maxRadius / dist;
+                            normX *= scale;
+                            normY *= scale;
+                          }
+                          
+                          const normDist = Math.sqrt(normX * normX + normY * normY);
+                          let calculatedScore = 0;
+                          if (normDist <= 10) calculatedScore = 10;
+                          else if (normDist <= 20) calculatedScore = 9;
+                          else if (normDist <= 30) calculatedScore = 8;
+                          else if (normDist <= 40) calculatedScore = 7;
+                          else if (normDist <= 50) calculatedScore = 6;
+                          else if (normDist <= 60) calculatedScore = 5;
+                          else if (normDist <= 70) calculatedScore = 4;
+                          else if (normDist <= 80) calculatedScore = 3;
+                          else if (normDist <= 90) calculatedScore = 2;
+                          else if (normDist <= 100) calculatedScore = 1;
+                          
+                          setEditArrowX(Math.round(normX));
+                          setEditArrowY(Math.round(normY));
+                          setEditScore(calculatedScore);
+                        }}
+                      >
+                        {/* White rings */}
+                        <circle cx="110" cy="110" r="100" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="80" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                        {/* Black rings */}
+                        <circle cx="110" cy="110" r="64" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="48" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                        {/* Blue rings */}
+                        <circle cx="110" cy="110" r="36" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="26" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                        {/* Red rings */}
+                        <circle cx="110" cy="110" r="18" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="12" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                        {/* Gold rings */}
+                        <circle cx="110" cy="110" r="7" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="3.5" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                        {/* Center Cross */}
+                        <circle cx="110" cy="110" r="0.5" fill="#333" />
+                        
+                        {/* Edit Marker */}
+                        {editArrowX !== undefined && editArrowY !== undefined && (
+                          <g>
+                            <circle cx={110 + editArrowX} cy={110 + editArrowY} r="7" fill="var(--steady)" opacity="0.6" className="pulsing" />
+                            <circle cx={110 + editArrowX} cy={110 + editArrowY} r="3" fill="#fff" stroke="var(--steady)" strokeWidth="1.5" />
+                          </g>
+                        )}
+                      </svg>
+                    </div>
+
+                    {/* Inputs panel */}
+                    <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid var(--gold)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>EDIT ARROW SCORE</span>
+                        <strong style={{ fontSize: '16px', color: 'var(--steady)' }}>{editScore} Points {editScore >= 9 ? '🎯' : ''}</strong>
+                      </div>
                       
-                      {/* Plotted Arrow landing position */}
-                      {selectedSession.arrowX !== undefined && selectedSession.arrowY !== undefined && (
-                        <g>
-                          <circle cx={110 + selectedSession.arrowX} cy={110 + selectedSession.arrowY} r="7" fill="var(--steady)" opacity="0.6" className="pulsing" />
-                          <circle cx={110 + selectedSession.arrowX} cy={110 + selectedSession.arrowY} r="3" fill="#fff" stroke="var(--steady)" strokeWidth="1.5" />
-                        </g>
-                      )}
-                    </svg>
-                  </div>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid var(--blue)', pointerEvents: 'auto' }}>
+                        <label style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>TARGET DISTANCE</label>
+                        <select
+                          value={editDistance}
+                          onChange={(e) => setEditDistance(parseInt(e.target.value) || 70)}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(0,0,0,0.5)',
+                            border: '1px solid var(--border-glass)',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            padding: '6px',
+                            fontSize: '13px'
+                          }}
+                        >
+                          {[18, 30, 50, 60, 70, 90].map((dist) => (
+                            <option key={dist} value={dist}>{dist}m</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  {/* Bullet Stats */}
-                  <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--gold)' }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>ARROW NUMBER</span>
-                      <strong style={{ fontSize: '15px', color: '#fff' }}>Arrow #{selectedSession.arrowNumber}</strong>
+                      {/* Save/Cancel Buttons */}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px', pointerEvents: 'auto' }}>
+                        <button
+                          className="btn-primary"
+                          style={{ flex: 1, padding: '8px 12px', fontSize: '12px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--steady), #2ecc71)' }}
+                          onClick={() => {
+                            onUpdateSession(selectedSession.id, {
+                              distance: editDistance,
+                              score: editScore,
+                              arrowX: editArrowX,
+                              arrowY: editArrowY
+                            });
+                            // Update local select state to reflect changes instantly
+                            const updated = {
+                              ...selectedSession,
+                              distance: editDistance,
+                              score: editScore,
+                              arrowX: editArrowX,
+                              arrowY: editArrowY
+                            };
+                            setSelectedSession(updated);
+                            setIsEditing(false);
+                          }}
+                        >
+                          💾 Save
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          style={{ flex: 1, padding: '8px 12px', fontSize: '12px', borderRadius: '6px', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}
+                          onClick={() => setIsEditing(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--blue)' }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>TARGET DISTANCE</span>
-                      <strong style={{ fontSize: '15px', color: '#fff' }}>{selectedSession.distance} Meters</strong>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--steady)' }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>CALCULATED SCORE</span>
-                      <strong style={{ fontSize: '16px', color: 'var(--steady)' }}>{selectedSession.score} Points {selectedSession.score >= 9 ? '🎯 Gold!' : ''}</strong>
-                    </div>
-                  </div>
 
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="glass-card" style={{ margin: '0 0 20px 0', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '12px' }}>
+                    <h4 style={{ color: '#fff', fontSize: '14px', margin: 0, textAlign: 'left' }}>Arrow Release Scoring Detail</h4>
+                    <button
+                      className="btn-primary"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        borderRadius: '14px',
+                        background: 'linear-gradient(135deg, var(--gold), #f39c12)',
+                        boxShadow: '0 2px 6px rgba(243,156,18,0.2)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        color: '#fff',
+                        pointerEvents: 'auto'
+                      }}
+                      onClick={() => setIsEditing(true)}
+                    >
+                      🎯 Set Score & Distance
+                    </button>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '20px', alignItems: 'center', width: '100%', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    
+                    {/* FITA Target face */}
+                    <div style={{ position: 'relative', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-glass)' }}>
+                      <svg width="220" height="220" viewBox="0 0 220 220" style={{ display: 'block', margin: '0 auto' }}>
+                        {/* White rings */}
+                        <circle cx="110" cy="110" r="100" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="80" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
+                        {/* Black rings */}
+                        <circle cx="110" cy="110" r="64" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="48" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
+                        {/* Blue rings */}
+                        <circle cx="110" cy="110" r="36" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="26" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
+                        {/* Red rings */}
+                        <circle cx="110" cy="110" r="18" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="12" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
+                        {/* Gold rings */}
+                        <circle cx="110" cy="110" r="7" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                        <circle cx="110" cy="110" r="3.5" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
+                        {/* Center Cross */}
+                        <circle cx="110" cy="110" r="0.5" fill="#333" />
+                        
+                        {/* Plotted Arrow landing position */}
+                        {selectedSession.arrowX !== undefined && selectedSession.arrowY !== undefined && (
+                          <g>
+                            <circle cx={110 + selectedSession.arrowX} cy={110 + selectedSession.arrowY} r="7" fill="var(--steady)" opacity="0.6" className="pulsing" />
+                            <circle cx={110 + selectedSession.arrowX} cy={110 + selectedSession.arrowY} r="3" fill="#fff" stroke="var(--steady)" strokeWidth="1.5" />
+                          </g>
+                        )}
+                      </svg>
+                    </div>
+
+                    {/* Bullet Stats */}
+                    <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--gold)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>ARROW NUMBER</span>
+                        <strong style={{ fontSize: '15px', color: '#fff' }}>Arrow #{selectedSession.arrowNumber}</strong>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--blue)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>TARGET DISTANCE</span>
+                        <strong style={{ fontSize: '15px', color: '#fff' }}>{selectedSession.distance} Meters</strong>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '8px', borderLeft: '3px solid var(--steady)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>CALCULATED SCORE</span>
+                        <strong style={{ fontSize: '16px', color: 'var(--steady)' }}>
+                          {selectedSession.score !== undefined && selectedSession.arrowX !== undefined && selectedSession.arrowY !== undefined 
+                            ? `${selectedSession.score} Points ${selectedSession.score >= 9 ? '🎯 Gold!' : ''}`
+                            : 'Not scored yet'}
+                        </strong>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )
             )}
 
             {/* Raw Telemetry Matrix Card (IMU & Geomagnetic North Projections) */}

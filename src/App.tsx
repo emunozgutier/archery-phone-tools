@@ -25,6 +25,7 @@ function App() {
     sessions,
     addSession,
     deleteSession,
+    updateSession,
     clearSessions,
     sensorRefreshRate,
     setSensorRefreshRate,
@@ -36,7 +37,6 @@ function App() {
     currentArrowNumber,
     setCurrentArrowNumber,
     preferredDistance,
-    setPreferredDistance,
     tempSessionData,
     setTempSessionData,
     isCameraEnabled,
@@ -268,53 +268,7 @@ function App() {
     : sensors.rawMagnet || { x: 0, y: 0, z: 0 };
 
 
-  // Click handler for interactive FITA target face
-  const handleTargetClick = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    
-    // Coordinates relative to SVG center (110, 110)
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    
-    const size = 220;
-    const cx = size / 2;
-    const cy = size / 2;
-    const dx = clickX - cx;
-    const dy = clickY - cy;
-    
-    const maxRadius = 100; // Radius of outer circle in SVG
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Clamp coordinates to target boundaries
-    let normX = dx;
-    let normY = dy;
-    if (dist > maxRadius) {
-      const scale = maxRadius / dist;
-      normX *= scale;
-      normY *= scale;
-    }
-    
-    // Calculate FITA target score (10 to 1) based on normalized distance
-    const normDist = Math.sqrt(normX * normX + normY * normY);
-    let calculatedScore = 0;
-    if (normDist <= 10) calculatedScore = 10;
-    else if (normDist <= 20) calculatedScore = 9;
-    else if (normDist <= 30) calculatedScore = 8;
-    else if (normDist <= 40) calculatedScore = 7;
-    else if (normDist <= 50) calculatedScore = 6;
-    else if (normDist <= 60) calculatedScore = 5;
-    else if (normDist <= 70) calculatedScore = 4;
-    else if (normDist <= 80) calculatedScore = 3;
-    else if (normDist <= 90) calculatedScore = 2;
-    else if (normDist <= 100) calculatedScore = 1;
-    
-    setClickCoord({
-      x: Math.round(normX),
-      y: Math.round(normY),
-      score: calculatedScore
-    });
-  };
+
 
   const handleSavePostShot = () => {
     if (!tempSessionData) return;
@@ -753,115 +707,69 @@ function App() {
           </div>
         </div>
       ) : appState === 'post_shot' ? (
-        <div className="scrollable" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '100%', padding: '16px', boxSizing: 'border-box', background: 'rgba(5, 5, 8, 0.98)' }}>
-          <div className="glass-panel" style={{ padding: '20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <h2 className="header-title" style={{ fontSize: '22px', marginBottom: '4px' }}>🎯 Record Arrow Release</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Tap the target face below to plot your arrow landing location.</p>
-            </div>
-
-            {/* Target Canvas Board */}
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
-              <div style={{ position: 'relative', background: 'rgba(0,0,0,0.5)', padding: '8px', borderRadius: '16px', border: '1px solid var(--border-glass)', boxShadow: '0 8px 30px rgba(0,0,0,0.6)' }}>
-                <svg
-                  width="220"
-                  height="220"
-                  viewBox="0 0 220 220"
-                  onClick={handleTargetClick}
-                  style={{ display: 'block', cursor: 'crosshair', pointerEvents: 'auto' }}
-                >
-                  {/* White rings */}
-                  <circle cx="110" cy="110" r="100" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
-                  <circle cx="110" cy="110" r="80" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" />
-                  {/* Black rings */}
-                  <circle cx="110" cy="110" r="64" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
-                  <circle cx="110" cy="110" r="48" fill="#1c1c1e" stroke="#333336" strokeWidth="1" />
-                  {/* Blue rings */}
-                  <circle cx="110" cy="110" r="36" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
-                  <circle cx="110" cy="110" r="26" fill="#30a3ff" stroke="#0071cc" strokeWidth="1" />
-                  {/* Red rings */}
-                  <circle cx="110" cy="110" r="18" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
-                  <circle cx="110" cy="110" r="12" fill="#ff453a" stroke="#b3150b" strokeWidth="1" />
-                  {/* Gold rings */}
-                  <circle cx="110" cy="110" r="7" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
-                  <circle cx="110" cy="110" r="3.5" fill="#ffd60a" stroke="#b39200" strokeWidth="1" />
-                  {/* Center Cross */}
-                  <circle cx="110" cy="110" r="0.5" fill="#333" />
-                  
-                  {/* Clicked arrow marker */}
-                  {clickCoord && (
-                    <g>
-                      <circle cx={110 + clickCoord.x} cy={110 + clickCoord.y} r="8" fill="var(--steady)" opacity="0.6" className="pulsing" />
-                      <circle cx={110 + clickCoord.x} cy={110 + clickCoord.y} r="3.5" fill="#fff" stroke="var(--steady)" strokeWidth="1.5" />
-                    </g>
-                  )}
-                </svg>
-              </div>
-            </div>
-
-            {/* Score HUD display */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '100vh', 
+          padding: '24px', 
+          boxSizing: 'border-box', 
+          background: 'radial-gradient(circle at center, #0e1017 0%, #050508 100%)' 
+        }}>
+          <div className="glass-panel" style={{ 
+            padding: '30px', 
+            textAlign: 'center', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            gap: '20px',
+            maxWidth: '380px',
+            width: '100%',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+            border: '1px solid var(--border-glass)',
+            borderRadius: '24px'
+          }}>
+            {/* Animated Target/Archery Success Icon */}
             <div style={{
-              background: clickCoord ? 'rgba(46, 204, 113, 0.1)' : 'rgba(255,255,255,0.02)',
-              border: clickCoord ? '1px solid rgba(46, 204, 113, 0.2)' : '1px solid var(--border-glass)',
-              borderRadius: '12px',
-              padding: '12px',
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(46, 204, 113, 0.1)',
+              border: '2px dashed var(--steady)',
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 20px rgba(46, 204, 113, 0.2)',
+              marginBottom: '10px'
+            }} className="pulsing">
+              <span style={{ fontSize: '36px' }}>🏹</span>
+            </div>
+
+            <div>
+              <h2 className="header-title" style={{ fontSize: '24px', marginBottom: '8px', color: '#fff' }}>Shot Captured!</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5' }}>
+                High-fidelity telemetry timeline and video recording are successfully compiled.
+              </p>
+            </div>
+
+            {/* Large Info Card */}
+            <div style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: '16px',
+              padding: '16px',
+              width: '100%',
+              boxSizing: 'border-box'
             }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Current Arrow Score:</span>
-              <strong style={{ fontSize: '18px', color: clickCoord ? 'var(--steady)' : '#fff' }}>
-                {clickCoord ? `${clickCoord.score} Points ${clickCoord.score >= 9 ? '🎯' : ''}` : 'Select landing point'}
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px' }}>STATUS</span>
+              <strong style={{ fontSize: '18px', color: 'var(--steady)', display: 'block', marginTop: '6px' }}>
+                Arrow #{currentArrowNumber} Recorded
               </strong>
             </div>
 
-            {/* Selectors grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', textAlign: 'left' }}>
-              <div>
-                <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Arrow Number</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={currentArrowNumber}
-                  onChange={(e) => setCurrentArrowNumber(parseInt(e.target.value) || 1)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(0,0,0,0.5)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    padding: '10px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Distance (Meters)</label>
-                <select
-                  value={preferredDistance}
-                  onChange={(e) => setPreferredDistance(parseInt(e.target.value) || 70)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(0,0,0,0.5)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    padding: '10px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  {[18, 30, 50, 60, 70, 90].map((dist) => (
-                    <option key={dist} value={dist}>{dist}m</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginTop: '8px' }}>
               <button
                 className="btn-primary"
                 style={{
@@ -869,25 +777,25 @@ function App() {
                   padding: '14px',
                   fontSize: '14px',
                   borderRadius: '10px',
-                  background: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                  background: !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl)
                     ? 'linear-gradient(135deg, var(--steady), #2ecc71)'
                     : 'rgba(255,255,255,0.05)',
-                  color: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                  color: !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl)
                     ? '#fff'
                     : 'var(--text-secondary)',
-                  cursor: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                  cursor: !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl)
                     ? 'pointer'
                     : 'not-allowed',
-                  boxShadow: (clickCoord && !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl))
+                  boxShadow: !(tempSessionData?.type === 'video' && !tempSessionData?.videoUrl)
                     ? '0 4px 15px rgba(46,204,113,0.3)'
                     : 'none'
                 }}
-                disabled={!clickCoord || (tempSessionData?.type === 'video' && !tempSessionData?.videoUrl)}
+                disabled={tempSessionData?.type === 'video' && !tempSessionData?.videoUrl}
                 onClick={handleSavePostShot}
               >
                 {tempSessionData?.type === 'video' && !tempSessionData?.videoUrl
                   ? '⏳ Compiling video segment...'
-                  : '💾 Save Arrow Release'}
+                  : '🟢 Save & Continue'}
               </button>
 
               <button
@@ -1036,6 +944,62 @@ function App() {
                   WebkitBackdropFilter: 'blur(10px)',
                   zIndex: 2
                 }}>
+                  {/* Arrow Selector Grid (1-12) during idle / arming */}
+                  {(sensors.trackerState === 'idle' || 
+                    sensors.trackerState === 'enter_state_armed' || 
+                    sensors.trackerState === 'stable_state_armed') && (
+                    <div style={{ 
+                      marginBottom: '12px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      borderRadius: '12px',
+                      padding: '10px 12px',
+                      pointerEvents: 'auto'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>🏹 Target Arrow Number</span>
+                        <span style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: 'bold' }}>Arrow #{currentArrowNumber}</span>
+                      </div>
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(12, 1fr)', 
+                        gap: '4px' 
+                      }}>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((num) => {
+                          const isActive = currentArrowNumber === num;
+                          return (
+                            <button
+                              key={num}
+                              onClick={() => {
+                                setCurrentArrowNumber(num);
+                                useErrorLog.getState().addLog(`Active arrow set to: #${num}`);
+                              }}
+                              style={{
+                                border: 'none',
+                                background: isActive 
+                                  ? 'linear-gradient(135deg, var(--steady), #2ecc71)' 
+                                  : 'rgba(255,255,255,0.05)',
+                                color: isActive ? '#fff' : 'var(--text-secondary)',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                height: '24px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease',
+                                boxShadow: isActive ? '0 0 8px rgba(46,204,113,0.4)' : 'none'
+                              }}
+                            >
+                              {num}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Alignment Telemetry Timeline</span>
                     <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Aim Hold History</span>
@@ -1054,7 +1018,7 @@ function App() {
             {/* Tab 3: Session Library View */}
             {activeTab === 'sessions' && (
               <div style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 2 }}>
-                <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} onClearSessions={clearSessions} />
+                <SessionLibrary sessions={sessions} onDeleteSession={deleteSession} onClearSessions={clearSessions} onUpdateSession={updateSession} />
               </div>
             )}
 
