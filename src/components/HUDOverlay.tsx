@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGlobal } from '../store/useGlobal';
+import { useSession } from '../store/useSession';
 
 interface HUDOverlayProps {
   pitch: number;
@@ -23,8 +24,9 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   onStopRecording
 }) => {
   const [recordSeconds, setRecordSeconds] = useState(0);
-  const { sessions, currentArrowNumber } = useGlobal();
-  const isAlreadyShot = sessions.some((s) => s.arrowNumber === currentArrowNumber);
+  const { currentArrowNumber } = useGlobal();
+  const { sessions } = useSession();
+  const isAlreadyShot = sessions.filter((s) => !s.isScored).some((s) => s.arrowNumber === currentArrowNumber);
 
   useEffect(() => {
     if (!isRecording) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useGlobal } from '../store/useGlobal';
 import { useErrorLog } from '../store/useErrorLog';
+import { useSession } from '../store/useSession';
 import {
   useSensorsStore,
   latestOrientationRef,
@@ -102,8 +103,9 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       switch (currentState) {
         case 'idle':
           if (isDown) {
-            const { sessions, currentArrowNumber } = useGlobal.getState();
-            const isAlreadyShot = sessions.some((s) => s.arrowNumber === currentArrowNumber);
+            const { sessions } = useSession.getState();
+            const { currentArrowNumber } = useGlobal.getState();
+            const isAlreadyShot = sessions.filter((s) => !s.isScored).some((s) => s.arrowNumber === currentArrowNumber);
             if (!isAlreadyShot) {
               transitionTo('enter_state_armed');
             }
@@ -294,6 +296,18 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     setTrackerState: stateStore.setTrackerState,
     calibratePosition,
     startRecording: store.startRecording,
-    stopRecording: store.stopRecording
+    stopRecording: store.stopRecording,
+    
+    // Camera Recorder Merged Props
+    stream: store.stream,
+    cameraActive: store.cameraActive,
+    cameraError: store.cameraError,
+    isRecordingVideo: store.isRecordingVideo,
+    recordedVideoUrl: store.recordedVideoUrl,
+    startCamera: store.startCamera,
+    stopCamera: store.stopCamera,
+    startVideoRecording: store.startVideoRecording,
+    stopVideoRecording: store.stopVideoRecording,
+    resetVideo: store.resetVideo
   };
 };
