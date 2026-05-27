@@ -4,7 +4,6 @@ interface HUDOverlayProps {
   pitch: number;
   roll: number;
   heading: number;
-  vibration: number;
   triggerState: 'IDLE' | 'ARMED' | 'AIMING';
   isRecording: boolean;
   calibration: { downPitch: number; aimPitch: number; pitchTolerance: number };
@@ -15,7 +14,6 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   pitch,
   roll,
   heading,
-  vibration,
   triggerState,
   isRecording,
   calibration,
@@ -62,13 +60,13 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
   const pitchOffset = Math.max(-maxOffset, Math.min(maxOffset, (pitchError / calibration.pitchTolerance) * maxOffset));
   const isPitchBalanced = Math.abs(pitchError) < 3.0;
 
-  // Determine shake intensity status and sight ring scale factor
-  const targetScale = 1 + (vibration / 45); // expands target ring
-  const targetColor = vibration < 15 ? 'var(--steady)' : vibration < 40 ? 'var(--tremor)' : 'var(--unstable)';
+  // Determine sight target color based directly on balance alignment
+  const targetScale = 1;
+  const targetColor = isPitchBalanced && isRollBalanced ? 'var(--steady)' : 'var(--gold)';
 
-  // Deterministic pure jitter offset for drawing (using trigonometric oscillations instead of Math.random)
-  const jitterX = isRecording && vibration > 20 ? Math.sin(vibration * 1.5) * (vibration / 15) : 0;
-  const jitterY = isRecording && vibration > 20 ? Math.cos(vibration * 2.3) * (vibration / 15) : 0;
+  // Deterministic clean alignment (no vibration jitter)
+  const jitterX = 0;
+  const jitterY = 0;
 
   return (
     <div style={{
@@ -298,6 +296,7 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
           padding: '10px 14px',
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
           background: 'rgba(10, 11, 16, 0.75)',
           border: '1px solid rgba(255, 255, 255, 0.08)'
         }}>
@@ -317,9 +316,9 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
           </div>
 
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>SHAKINESS</span>
-            <span style={{ fontSize: '14px', color: targetColor, fontWeight: 'bold', fontFamily: 'var(--mono)' }}>
-              {vibration}%
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>BALANCE</span>
+            <span style={{ fontSize: '12px', color: isPitchBalanced && isRollBalanced ? 'var(--steady)' : 'var(--gold)', fontWeight: 'bold', textTransform: 'uppercase' }}>
+              {isPitchBalanced && isRollBalanced ? '🟢 STEADY' : '⚠️ UNLEVEL'}
             </span>
           </div>
         </div>

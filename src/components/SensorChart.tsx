@@ -8,12 +8,14 @@ interface SensorChartProps {
     gravityDominantAxis: 'x' | 'y' | 'z' | null;
     magnetDominantAxis: 'x' | 'y' | 'z' | null;
   };
+  triggerState?: 'IDLE' | 'ARMED' | 'AIMING';
 }
 
 export const SensorChart: React.FC<SensorChartProps> = ({
   rollingBufferRef,
   height = 140,
-  calibration
+  calibration,
+  triggerState
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -102,86 +104,54 @@ export const SensorChart: React.FC<SensorChartProps> = ({
       const gAxis = calibration?.gravityDominantAxis || 'y';
       const mAxis = calibration?.magnetDominantAxis || 'z';
 
-      // --- 1. Draw Stability Waveform (Emerald hold timeline 0-100%) ---
+      // If in ARMED or IDLE mode, force traces to flat zero
+      const isAiming = triggerState === 'AIMING';
+
+      // --- 1. Draw Gravity Component Angle for Picked Axis (0-180°) ---
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      
-      buffer.forEach((pt, idx) => {
-        const x = idx * spacing;
-        const stability = 100 - pt.vibration; // Map shakiness (0-100) to Stability (100-0)
-        const normValue = stability / 100;
-        const y = heightVal - (normValue * (heightVal - 30)) - 8;
-        
-        if (idx === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-
-      // Draw premium glow shadow on holding stability
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = 'rgba(52, 199, 89, 0.25)';
-      ctx.strokeStyle = '#34c759'; // steady green
-      ctx.stroke();
-      ctx.shadowBlur = 0; // reset
-
-      // Translucent hold area filling
-      ctx.lineTo((buffer.length - 1) * spacing, heightVal);
-      ctx.lineTo(0, heightVal);
-      ctx.closePath();
-      const fillGrad = ctx.createLinearGradient(0, heightVal, 0, 0);
-      fillGrad.addColorStop(0, 'rgba(52, 199, 89, 0.0)');
-      fillGrad.addColorStop(1, 'rgba(52, 199, 89, 0.08)');
-      ctx.fillStyle = fillGrad;
-      ctx.fill();
-
-      // --- 2. Draw Gravity Component Angle for Picked Axis (0-180°) ---
-      ctx.lineWidth = 1.5;
       ctx.strokeStyle = getAxisColor(gAxis);
       ctx.beginPath();
       buffer.forEach((pt, idx) => {
         const x = idx * spacing;
-        const gAngle = getDegrees({ x: pt.accX, y: pt.accY, z: pt.accZ }, gAxis);
+        const gAngle = isAiming ? getDegrees({ x: pt.accX, y: pt.accY, z: pt.accZ }, gAxis) : 0;
         const y = heightVal - ((gAngle / 180) * (heightVal - 30)) - 8;
         if (idx === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
       ctx.stroke();
 
-      // --- 3. Draw Magnet Component Angle for Picked Axis (0-180°) ---
-      ctx.lineWidth = 1.5;
+      // --- 2. Draw Magnet Component Angle for Picked Axis (0-180°) ---
+      ctx.lineWidth = 2;
       ctx.strokeStyle = getAxisColor(mAxis);
       ctx.beginPath();
       buffer.forEach((pt, idx) => {
         const x = idx * spacing;
-        const mAngle = getDegrees({ x: pt.magX, y: pt.magY, z: pt.magZ }, mAxis);
+        const mAngle = isAiming ? getDegrees({ x: pt.magX, y: pt.magY, z: pt.magZ }, mAxis) : 0;
         const y = heightVal - ((mAngle / 180) * (heightVal - 30)) - 8;
         if (idx === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
       ctx.stroke();
 
-      // --- 4. Draw Diagnostics Telemetry HUD Readout ---
+      // --- 3. Draw Diagnostics Telemetry HUD Readout ---
       const latestPt = buffer[buffer.length - 1];
-      const latestStability = 100 - latestPt.vibration;
       const latestGAngle = getDegrees({ x: latestPt.accX, y: latestPt.accY, z: latestPt.accZ }, gAxis);
       const latestMAngle = getDegrees({ x: latestPt.magX, y: latestPt.magY, z: latestPt.magZ }, mAxis);
 
       ctx.font = '9px JetBrains Mono, monospace';
       ctx.textBaseline = 'top';
 
-      // Left side: stability score percentage
-      ctx.fillStyle = '#34c759';
+      // Left side: current tracking state
+      ctx.fillStyle = isAiming ? 'var(--gold)' : 'var(--text-secondary)';
       ctx.textAlign = 'left';
-      ctx.fillText(`🟢 STABILITY: ${latestStability}%`, 8, 8);
+      ctx.fillText(`📊 STATUS: ${triggerState || 'IDLE'}`, 8, 8);
 
-      // Right side: picked components angles
+      // Right side: picked components angles (show 0 if in ARMED/IDLE mode)
       ctx.textAlign = 'right';
       ctx.fillStyle = getAxisColor(gAxis);
-      ctx.fillText(`🎯 Grav ${gAxis.toUpperCase()}: ${latestGAngle}°`, width - 8, 8);
+      ctx.fillText(`🎯 Grav ${gAxis.toUpperCase()}: ${isAiming ? latestGAngle : 0}°`, width - 8, 8);
       ctx.fillStyle = getAxisColor(mAxis);
-      ctx.fillText(`🧲 Mag ${mAxis.toUpperCase()}: ${latestMAngle}°`, width - 8, 18);
+      ctx.fillText(`🧲 Mag ${mAxis.toUpperCase()}: ${isAiming ? latestMAngle : 0}°`, width - 8, 18);
 
       animationFrameRef.current = requestAnimationFrame(draw);
     };
@@ -194,7 +164,7 @@ export const SensorChart: React.FC<SensorChartProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [bufferRef, calibration]);
+  }, [bufferRef, calibration, triggerState]);
 
   return (
     <div style={{

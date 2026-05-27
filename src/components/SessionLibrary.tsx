@@ -107,8 +107,7 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {sessions.map((session) => {
-            const stability = 100 - session.avgVibration;
-            const stabilityColor = stability > 85 ? 'var(--steady)' : stability > 65 ? 'var(--tremor)' : 'var(--unstable)';
+            const borderCol = session.type === 'video' ? 'var(--blue)' : 'var(--gold)';
             
             return (
               <div
@@ -117,12 +116,12 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                 style={{
                   margin: 0,
                   cursor: 'pointer',
-                  borderLeft: `4px solid ${stabilityColor}`,
+                  borderLeft: `4px solid ${borderCol}`,
                   transition: 'transform 0.15s, background-color 0.15s'
                 }}
                 onClick={() => setSelectedSession(session)}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <span style={{
                       fontSize: '10px',
@@ -136,31 +135,23 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
                     }}>
                       {session.type} Mode
                     </span>
-                    {session.score !== undefined && (
-                      <span style={{
-                        fontSize: '10px',
-                        background: 'rgba(46, 204, 113, 0.15)',
-                        color: 'var(--steady)',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        fontWeight: 'bold',
-                        marginLeft: '8px'
-                      }}>
-                        🏹 Arrow #{session.arrowNumber} • {session.distance}m • Score: {session.score}
-                      </span>
-                    )}
                     <h4 style={{ color: '#fff', fontSize: '15px', marginTop: '6px' }}>{formatDate(session.timestamp)}</h4>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                       Duration: {session.duration}s • Points: {session.sensorData.length}
                     </p>
                   </div>
                   
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>STABILITY</span>
-                    <h3 style={{ color: stabilityColor, fontSize: '20px', fontWeight: 800 }}>
-                      {stability}%
-                    </h3>
-                  </div>
+                  {session.score !== undefined && (
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>SCORE</span>
+                      <h3 style={{ color: 'var(--steady)', fontSize: '20px', fontWeight: 800 }}>
+                        {session.score} PTS
+                      </h3>
+                      <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                        Arrow #{session.arrowNumber} • {session.distance}m
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -217,19 +208,19 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
               marginBottom: '20px'
             }}>
               <div className="glass-card" style={{ margin: 0, textAlign: 'center', padding: '12px' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>AVG STABILITY</span>
+                <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>SCORE</span>
                 <span style={{ fontSize: '18px', color: 'var(--steady)', fontWeight: 800 }}>
-                  {100 - selectedSession.avgVibration}%
+                  {selectedSession.score !== undefined ? `${selectedSession.score} PTS` : 'N/A'}
                 </span>
               </div>
               <div className="glass-card" style={{ margin: 0, textAlign: 'center', padding: '12px' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>MAX SHAKE</span>
-                <span style={{ fontSize: '18px', color: 'var(--unstable)', fontWeight: 800 }}>
-                  {selectedSession.maxVibration}%
+                <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>DISTANCE</span>
+                <span style={{ fontSize: '18px', color: 'var(--blue)', fontWeight: 800 }}>
+                  {selectedSession.distance !== undefined ? `${selectedSession.distance}m` : 'N/A'}
                 </span>
               </div>
               <div className="glass-card" style={{ margin: 0, textAlign: 'center', padding: '12px' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>DURATION</span>
+                <span style={{ fontSize: '9px', color: 'var(--text-secondary)', display: 'block' }}>HOLD TIME</span>
                 <span style={{ fontSize: '18px', color: '#fff', fontWeight: 800 }}>
                   {selectedSession.duration}s
                 </span>
@@ -356,13 +347,14 @@ export const SessionLibrary: React.FC<SessionLibraryProps> = ({
 
             {/* Synced Telemetry Timeline */}
             <div style={{ marginBottom: '24px' }}>
-              <h4 style={{ color: '#fff', fontSize: '14px', marginBottom: '8px', textAlign: 'left' }}>Aim Stability Timeline</h4>
+              <h4 style={{ color: '#fff', fontSize: '14px', marginBottom: '8px', textAlign: 'left' }}>Dominant Alignment Timeline</h4>
               <SensorChart
                 rollingBufferRef={{ current: selectedSession.sensorData }}
                 height={160}
+                triggerState="AIMING"
               />
               <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '6px', textAlign: 'left', lineHeight: '1.4' }}>
-                💡 Glowing green filled curve represents stability hold index (0-100%). Overlaid color-coded curves track the exact angles of your calibrated dominant gravity and magnet axes. Flat, steady lines signify peak aiming hold!
+                💡 Overlaid color-coded curves track the exact angles of your calibrated dominant gravity and magnet axes in degrees (0-180°). Perfect flat, horizontal lines signify peak aiming consistency!
               </p>
             </div>
 

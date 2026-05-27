@@ -51,9 +51,8 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     callbacksRef.current = { onAutoTriggerStart, onAutoTriggerStop };
   }, [onAutoTriggerStart, onAutoTriggerStop]);
 
-  // High-pass filter variables for accelerometer vibration tracking
-  const prevAcc = useRef({ x: 0, y: 0, z: 0 });
-  const vibrationFilter = useRef<number[]>([]);
+  // Stability measuring is completely disabled
+
 
   // Main listener for orientation and motion.
   // CRITICAL: Empty dependency array ensures this registers EXACTLY ONCE on mount,
@@ -148,10 +147,7 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     };
 
     const handleMotion = (event: DeviceMotionEvent) => {
-      const acc = event.acceleration || { x: 0, y: 0, z: 0 };
-      const rawX = acc.x || 0;
-      const rawY = acc.y || 0;
-      const rawZ = acc.z || 0;
+
 
       // Capture static acceleration including gravity to show exactly which physical axes are aligned with gravity
       const grav = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 };
@@ -161,25 +157,9 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
         z: Math.round((grav.z || 0) * 100) / 100
       };
 
-      // Compute High-Frequency Vibration (High pass filtering)
-      const diffX = rawX - prevAcc.current.x;
-      const diffY = rawY - prevAcc.current.y;
-      const diffZ = rawZ - prevAcc.current.z;
-      
-      prevAcc.current = { x: rawX, y: rawY, z: rawZ };
-
-      const instantShake = Math.sqrt(diffX * diffX + diffY * diffY + diffZ * diffZ);
-      
-      vibrationFilter.current.push(instantShake);
-      if (vibrationFilter.current.length > 10) {
-        vibrationFilter.current.shift();
-      }
-
-      const avgShake = vibrationFilter.current.reduce((a, b) => a + b, 0) / vibrationFilter.current.length;
-      const mappedVibration = Math.min(Math.round(avgShake * 22), 100);
-      
-      // Update high-frequency global ref instantly
-      latestVibrationRef.current = mappedVibration;
+      // Stability measuring is completely disabled
+      const mappedVibration = 0;
+      latestVibrationRef.current = 0;
 
       // Save real-time raw values in our 60fps rolling buffers
       const now = Date.now();

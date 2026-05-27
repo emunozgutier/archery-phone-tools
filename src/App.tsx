@@ -23,8 +23,7 @@ function App() {
     setIsMockActive,
     mockPitch,
     setMockPitch,
-    mockVibration,
-    setMockVibration,
+
     sessions,
     addSession,
     deleteSession,
@@ -205,8 +204,8 @@ function App() {
               timestamp: Date.now(),
               type: activeTab === 'tracker' ? 'video' : 'sensor',
               duration: 6,
-              avgVibration: 12,
-              maxVibration: 32,
+              avgVibration: 0,
+              maxVibration: 0,
               sensorData: mockData,
               videoUrl: activeTab === 'tracker' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null // generic placeholder video for desktop simulator
             };
@@ -236,7 +235,7 @@ function App() {
         pitch: aimP + (Math.sin(i / 10) * 2),
         roll: Math.cos(i / 15) * 1.5,
         heading: 184,
-        vibration: Math.max(3, Math.round(8 + Math.sin(i / 5) * 6 + (Math.random() * 4))),
+        vibration: 0,
         accX: Math.round((Math.sin(i / 8) * 0.4 + (Math.random() * 0.1)) * 100) / 100,
         accY: Math.round((Math.cos(i / 10) * 0.3 + (Math.random() * 0.1)) * 100) / 100,
         accZ: Math.round((Math.sin(i / 12) * 0.5 + (Math.random() * 0.1)) * 100) / 100,
@@ -252,7 +251,6 @@ function App() {
   const currentPitch = isMockActive ? mockPitch : sensors.orientation.beta;
   const currentRoll = isMockActive ? 2 : sensors.orientation.gamma;
   const currentHeading = isMockActive ? 184 : sensors.orientation.heading;
-  const currentVibration = isMockActive ? mockVibration : sensors.vibrationIndex;
 
   // Master Gravity & Magnet readings (Mock overrides vs physical)
   const currentGravity = isMockActive 
@@ -945,7 +943,6 @@ function App() {
                     pitch={currentPitch}
                     roll={currentRoll}
                     heading={currentHeading}
-                    vibration={currentVibration}
                     triggerState={sensors.triggerState}
                     isRecording={sensors.isRecording || camera.isRecordingVideo}
                     calibration={sensors.calibration}
@@ -984,7 +981,7 @@ function App() {
                       </div>
                       <h3 style={{ color: '#fff', fontSize: '15px', fontWeight: 600, margin: '0 0 6px 0' }}>Sensor-Only Telemetry Mode</h3>
                       <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: 0, opacity: 0.7, maxWidth: '240px', lineHeight: '1.4', padding: '0 20px' }}>
-                        Camera feedback is disabled. Real-time telemetry, leveling, and bow stability are active.
+                        Camera feedback is disabled. Real-time alignment telemetry and leveling are active.
                       </p>
                     </div>
                   ) : !camera.stream && !isMockActive ? (
@@ -1023,13 +1020,14 @@ function App() {
                   zIndex: 2
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Stability Telemetry Timeline</span>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Alignment Telemetry Timeline</span>
                     <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Aim Hold History</span>
                   </div>
                   <SensorChart
                     rollingBufferRef={sensors.rollingBufferRef}
                     height={85}
                     calibration={sensors.calibration}
+                    triggerState={sensors.triggerState}
                   />
                 </div>
 
@@ -1298,19 +1296,6 @@ function App() {
                         />
                       </div>
 
-                      <div>
-                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                          Simulated Shakiness index: {mockVibration}%
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={mockVibration}
-                          onChange={(e) => setMockVibration(parseInt(e.target.value))}
-                          style={{ width: '100%' }}
-                        />
-                      </div>
                     </div>
                   </div>
                 )}
