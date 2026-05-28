@@ -86,7 +86,10 @@ export const HUDOverlay: React.FC<HUDOverlayProps> = ({
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
-      padding: '16px',
+      paddingTop: 'calc(var(--safe-area-top) + 16px)',
+      paddingBottom: 'calc(var(--safe-area-bottom) + 16px)',
+      paddingLeft: 'calc(var(--safe-area-left) + 16px)',
+      paddingRight: 'calc(var(--safe-area-right) + 16px)',
       boxSizing: 'border-box',
       zIndex: 10
     }}>

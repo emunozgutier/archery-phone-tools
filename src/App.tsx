@@ -741,7 +741,7 @@ function App() {
           appVersion={appVersion}
         />
       ) : appState === 'calibrating' ? (
-        <div className="scrollable" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80%', padding: '20px' }}>
+        <div className="scrollable" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80%' }}>
           <div className="glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
             <h1 className="header-title" style={{ fontSize: '24px', marginBottom: '8px' }}>
               🏹 Sensor Calibration Wizard
@@ -785,8 +785,11 @@ function App() {
           flexDirection: 'column', 
           justifyContent: 'center', 
           alignItems: 'center', 
-          minHeight: '100vh', 
-          padding: '24px', 
+          minHeight: '100dvh', 
+          paddingTop: 'calc(var(--safe-area-top) + 24px)',
+          paddingBottom: 'calc(var(--safe-area-bottom) + 24px)',
+          paddingLeft: 'calc(var(--safe-area-left) + 24px)',
+          paddingRight: 'calc(var(--safe-area-right) + 24px)',
           boxSizing: 'border-box', 
           background: 'radial-gradient(circle at center, #0e1017 0%, #050508 100%)' 
         }}>
@@ -1700,7 +1703,10 @@ function App() {
 
           {/* Bottom Tab Navigation Bar */}
           <div style={{
-            height: '66px',
+            height: 'calc(66px + var(--safe-area-bottom))',
+            paddingBottom: 'var(--safe-area-bottom)',
+            paddingLeft: 'var(--safe-area-left)',
+            paddingRight: 'var(--safe-area-right)',
             borderTop: '1px solid var(--border-glass)',
             background: 'rgba(10, 11, 16, 0.9)',
             backdropFilter: 'blur(20px)',
