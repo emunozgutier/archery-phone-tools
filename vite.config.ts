@@ -5,8 +5,9 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
+  const isCapacitor = process.env.CAPACITOR === 'true';
   return {
-    base: command === 'serve' ? './' : 'https://cdn.jsdelivr.net/gh/emunozgutier/archery-phone-tools@main/dist/',
+    base: isCapacitor || command === 'serve' ? './' : 'https://cdn.jsdelivr.net/gh/emunozgutier/archery-phone-tools@main/dist/',
     server: {
       host: true,
     },
