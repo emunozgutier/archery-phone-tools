@@ -36,7 +36,13 @@ interface GlobalState {
 }
 
 export const useGlobal = create<GlobalState>((set) => ({
-  isOnboarded: false,
+  isOnboarded: (() => {
+    try {
+      return localStorage.getItem('archery_onboarded') === 'true';
+    } catch {
+      return false;
+    }
+  })(),
   isMockActive: false,
   mockPitch: -60,
   mockVibration: 5,
@@ -82,6 +88,11 @@ export const useGlobal = create<GlobalState>((set) => ({
   
   setIsOnboarded: (isOnboarded) => {
     useErrorLog.getState().addLog(`Onboarding status changed to: ${isOnboarded}`);
+    try {
+      localStorage.setItem('archery_onboarded', String(isOnboarded));
+    } catch (e) {
+      // ignore
+    }
     const nextState = isOnboarded ? 'calibrating' : 'permissions';
     set({ isOnboarded });
     useStateStore.getState().setAppState(nextState);

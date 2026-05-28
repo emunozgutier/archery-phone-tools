@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useGlobal } from './useGlobal';
 
 interface PermissionState {
   cameraApproved: boolean;
@@ -46,10 +47,12 @@ export const usePermission = create<PermissionState>((set) => {
         localStorage.removeItem('archery_camera_approved');
         localStorage.removeItem('archery_sensor_approved');
         localStorage.removeItem('archery_permission_date');
+        localStorage.removeItem('archery_onboarded');
       } catch (e) {
         // ignore
       }
       set({ cameraApproved: false, sensorApproved: false, approvalDate: null });
+      useGlobal.getState().setIsOnboarded(false);
     }
   };
 });

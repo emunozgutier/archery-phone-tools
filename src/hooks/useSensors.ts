@@ -8,6 +8,9 @@ import {
   latestVibrationRef,
   latestAccelRef,
   latestMagnetRef,
+  latestGyroRef,
+  latestGpsRef,
+  latestPressureRef,
   rollingBufferRef,
   triggerHapticSingle,
   triggerHapticPulseShort
@@ -27,6 +30,9 @@ export interface SensorDataPoint {
   magX: number;
   magY: number;
   magZ: number;
+  gyroX: number;
+  gyroY: number;
+  gyroZ: number;
 }
 
 export interface CalibrationConfig {
@@ -191,14 +197,20 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     };
 
     const handleMotion = (event: DeviceMotionEvent) => {
-
-
       // Capture static acceleration including gravity to show exactly which physical axes are aligned with gravity
       const grav = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 };
       latestAccelRef.current = {
         x: Math.round((grav.x || 0) * 100) / 100,
         y: Math.round((grav.y || 0) * 100) / 100,
         z: Math.round((grav.z || 0) * 100) / 100
+      };
+
+      // Capture rotation rate (gyroscope)
+      const rotation = event.rotationRate || { alpha: 0, beta: 0, gamma: 0 };
+      latestGyroRef.current = {
+        x: Math.round((rotation.beta || 0) * 100) / 100, // rotation around X-axis
+        y: Math.round((rotation.gamma || 0) * 100) / 100, // rotation around Y-axis
+        z: Math.round((rotation.alpha || 0) * 100) / 100  // rotation around Z-axis
       };
 
       // Stability measuring is completely disabled
@@ -234,7 +246,10 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
         accZ: latestAccelRef.current.z,
         magX: Math.round(mX * 100) / 100,
         magY: Math.round(mY * 100) / 100,
-        magZ: Math.round(mZ * 100) / 100
+        magZ: Math.round(mZ * 100) / 100,
+        gyroX: latestGyroRef.current.x,
+        gyroY: latestGyroRef.current.y,
+        gyroZ: latestGyroRef.current.z
       };
 
       rollingBufferRef.current.push(currentPoint);
@@ -248,6 +263,39 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     window.addEventListener('deviceorientation', handleOrientation);
     window.addEventListener('devicemotion', handleMotion);
 
+    // Track Location (GPS) and Barometric Pressure
+    let geoWatchId: number | null = null;
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      geoWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const coords = position.coords;
+          latestGpsRef.current = {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            altitude: coords.altitude,
+            accuracy: coords.accuracy
+          };
+        },
+        () => {
+          // ignore
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    let pressureSensor: any = null;
+    if (typeof window !== 'undefined' && 'PressureSensor' in window) {
+      try {
+        pressureSensor = new (window as any).PressureSensor({ frequency: 1 });
+        pressureSensor.addEventListener('reading', () => {
+          latestPressureRef.current = pressureSensor.pressure;
+        });
+        pressureSensor.start();
+      } catch (err) {
+        // ignore
+      }
+    }
+
     // Only update standard React/Zustand state at the user-defined frequency to prevent mobile throttling.
     const throttleInterval = setInterval(() => {
       evaluateStateMachine();
@@ -255,7 +303,10 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
         orientation: { ...latestOrientationRef.current },
         vibrationIndex: latestVibrationRef.current,
         rawAccel: { ...latestAccelRef.current },
-        rawMagnet: { ...latestMagnetRef.current }
+        rawMagnet: { ...latestMagnetRef.current },
+        rawGyro: { ...latestGyroRef.current },
+        rawGps: { ...latestGpsRef.current },
+        rawPressure: latestPressureRef.current
       });
     }, 1000 / sensorRefreshRate); // Dynamic refresh rate updates for HUD values
 
@@ -266,6 +317,16 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
       window.removeEventListener('deviceorientation', handleOrientation);
       window.removeEventListener('devicemotion', handleMotion);
       clearInterval(throttleInterval);
+      if (geoWatchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(geoWatchId);
+      }
+      if (pressureSensor) {
+        try {
+          pressureSensor.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
     };
   }, [store.permissionGranted, addLog, sensorRefreshRate]);
 
@@ -285,6 +346,9 @@ export const useSensors = (onAutoTriggerStart?: () => void, onAutoTriggerStop?: 
     vibrationIndex: store.vibrationIndex,
     rawAccel: store.rawAccel,
     rawMagnet: store.rawMagnet,
+    rawGyro: store.rawGyro,
+    rawGps: store.rawGps,
+    rawPressure: store.rawPressure,
     isRecording: store.isRecording,
     sensorHistory: store.sensorHistory,
     rollingBufferRef: rollingBufferRef,

@@ -12,6 +12,9 @@ interface SensorsState {
   vibrationIndex: number;
   rawAccel: { x: number; y: number; z: number };
   rawMagnet: { x: number; y: number; z: number };
+  rawGyro: { x: number; y: number; z: number };
+  rawGps: { latitude: number | null; longitude: number | null; altitude: number | null; accuracy: number | null };
+  rawPressure: number | null;
   isRecording: boolean;
   
   calibration: CalibrationConfig;
@@ -56,6 +59,9 @@ export const latestOrientationRef = { current: { alpha: 0, beta: 0, gamma: 0, he
 export const latestVibrationRef = { current: 0 };
 export const latestAccelRef = { current: { x: 0, y: 0, z: 0 } };
 export const latestMagnetRef = { current: { x: 0, y: 0, z: 0 } };
+export const latestGyroRef = { current: { x: 0, y: 0, z: 0 } };
+export const latestGpsRef = { current: { latitude: null as number | null, longitude: null as number | null, altitude: null as number | null, accuracy: null as number | null } };
+export const latestPressureRef = { current: null as number | null };
 
 function getDominantAxis(
   v1: { x: number; y: number; z: number },
@@ -127,6 +133,9 @@ export const useSensorsStore = create<SensorsState>((set, get) => ({
   vibrationIndex: 0,
   rawAccel: { x: 0, y: 0, z: 0 },
   rawMagnet: { x: 0, y: 0, z: 0 },
+  rawGyro: { x: 0, y: 0, z: 0 },
+  rawGps: { latitude: null, longitude: null, altitude: null, accuracy: null },
+  rawPressure: null,
   isRecording: false,
   
   calibration: loadCalibrationFromStorage(),

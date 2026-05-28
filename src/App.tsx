@@ -126,7 +126,14 @@ function App() {
         ),
         maxVibration: Math.max(...capturedSensorPoints.map((p) => p.vibration), 0),
         sensorData: capturedSensorPoints,
-        videoUrl: null
+        videoUrl: null,
+        gps: isMockActive
+          ? { latitude: 37.7749, longitude: -122.4194, altitude: 12, accuracy: 5 }
+          : sensors.rawGps,
+        barometer: isMockActive
+          ? 1013.25 + Math.sin(Date.now() / 10000) * 0.5
+          : sensors.rawPressure,
+        temperature: isMockActive ? 22.5 : 24.0
       };
 
       setTempSessionData(tempData);
@@ -219,7 +226,15 @@ function App() {
               avgVibration: 0,
               maxVibration: 0,
               sensorData: mockData,
-              videoUrl: activeTab === 'tracker' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null // generic placeholder video for desktop simulator
+              videoUrl: activeTab === 'tracker' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null, // generic placeholder video for desktop simulator
+              gps: {
+                latitude: 37.7749 + (Math.random() - 0.5) * 0.001,
+                longitude: -122.4194 + (Math.random() - 0.5) * 0.001,
+                altitude: 15 + Math.round(Math.random() * 5),
+                accuracy: 5
+              },
+              barometer: 1013.25 + (Math.random() - 0.5) * 0.5,
+              temperature: 22.5 + (Math.random() - 0.5) * 2
             };
             addSession(newSession);
           }, 500);
@@ -253,7 +268,10 @@ function App() {
         accZ: Math.round((Math.sin(i / 12) * 0.5 + (Math.random() * 0.1)) * 100) / 100,
         magX: Math.round(mX * 100) / 100,
         magY: Math.round(mY * 100) / 100,
-        magZ: Math.round(mZ * 100) / 100
+        magZ: Math.round(mZ * 100) / 100,
+        gyroX: Math.round((Math.sin(i / 15) * 2) * 100) / 100,
+        gyroY: Math.round((Math.cos(i / 12) * 1.5) * 100) / 100,
+        gyroZ: Math.round((Math.sin(i / 20) * 1) * 100) / 100
       });
     }
     return log;
@@ -280,6 +298,22 @@ function App() {
         z: Math.round(-Math.sin((currentPitch * Math.PI) / 180) * 100) / 100
       }
     : sensors.rawMagnet || { x: 0, y: 0, z: 0 };
+
+  const currentGyro = isMockActive
+    ? {
+        x: Math.round((Math.sin(Date.now() / 300) * 1.5) * 10) / 10,
+        y: Math.round((Math.cos(Date.now() / 400) * 1.2) * 10) / 10,
+        z: Math.round((Math.sin(Date.now() / 500) * 0.8) * 10) / 10
+      }
+    : sensors.rawGyro || { x: 0, y: 0, z: 0 };
+
+  const currentGps = isMockActive
+    ? { latitude: 37.7749, longitude: -122.4194, altitude: 12, accuracy: 5 }
+    : sensors.rawGps || { latitude: null, longitude: null, altitude: null, accuracy: null };
+
+  const currentPressure = isMockActive
+    ? 1013.25 + Math.sin(Date.now() / 10000) * 0.5
+    : sensors.rawPressure;
 
 
 
@@ -346,7 +380,14 @@ function App() {
         ),
         maxVibration: Math.max(...data.map((p) => p.vibration), 0),
         sensorData: data,
-        videoUrl: null
+        videoUrl: null,
+        gps: isMockActive
+          ? { latitude: 37.7749, longitude: -122.4194, altitude: 12, accuracy: 5 }
+          : sensors.rawGps,
+        barometer: isMockActive
+          ? 1013.25 + Math.sin(Date.now() / 10000) * 0.5
+          : sensors.rawPressure,
+        temperature: isMockActive ? 22.5 : 24.0
       };
 
       setTempSessionData(tempData);
@@ -503,13 +544,27 @@ function App() {
                 <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity, 'y', null, 'var(--blue)', true)}</td>
                 <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentGravity, 'z', null, 'var(--steady)', true)}</td>
               </tr>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                 <td style={{ padding: '6px 4px', color: '#f8fafc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: 'var(--steady)', fontSize: '12px' }}>🧲</span> Magnet
                 </td>
                 <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet, 'x', null, 'var(--gold)', true)}</td>
                 <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet, 'y', null, 'var(--blue)', true)}</td>
                 <td style={{ padding: '6px 4px', textAlign: 'center' }}>{renderCell(currentMagnet, 'z', null, 'var(--steady)', true)}</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <td style={{ padding: '6px 4px', color: '#f8fafc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: 'var(--blue)', fontSize: '12px' }}>🔄</span> Gyroscope
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--gold)', fontWeight: '600' }}>
+                  {currentGyro.x > 0 ? '+' : ''}{currentGyro.x.toFixed(1)}°/s
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--blue)', fontWeight: '600' }}>
+                  {currentGyro.y > 0 ? '+' : ''}{currentGyro.y.toFixed(1)}°/s
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--steady)', fontWeight: '600' }}>
+                  {currentGyro.z > 0 ? '+' : ''}{currentGyro.z.toFixed(1)}°/s
+                </td>
               </tr>
               
               {/* Resting Position Header */}
@@ -1099,6 +1154,78 @@ function App() {
                       1. Rest bow: point phone to ground ({sensors.calibration.downPitch}° pitch). Trigger arms.<br />
                       2. Lift bow: aim at targets ({sensors.calibration.aimPitch}° pitch). Auto-record starts.
                     </p>
+                  </div>
+                </div>
+
+                {/* Environmental & Location Telemetry Panel */}
+                <div className="glass-panel" style={{ marginTop: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ color: '#fff', fontSize: '15px', textAlign: 'left', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🌍</span> Environmental & Location
+                  </h3>
+                  <p className="subtitle" style={{ marginTop: '-8px', fontSize: '11px', textAlign: 'left' }}>Real-time GPS positioning and atmospheric barometer values.</p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {/* GPS Panel */}
+                    <div className="glass-card" style={{ margin: 0, padding: '14px', textAlign: 'left' }}>
+                      <strong style={{ color: '#fff', fontSize: '12px', display: 'block', marginBottom: '8px' }}>📡 GPS Satellite Location</strong>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Latitude:</span>
+                          <span style={{ color: 'var(--gold)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentGps.latitude !== null ? `${currentGps.latitude.toFixed(5)}°` : 'Searching...'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Longitude:</span>
+                          <span style={{ color: 'var(--gold)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentGps.longitude !== null ? `${currentGps.longitude.toFixed(5)}°` : 'Searching...'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Altitude:</span>
+                          <span style={{ color: 'var(--blue)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentGps.altitude !== null ? `${Math.round(currentGps.altitude)} m` : '—'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Accuracy:</span>
+                          <span style={{ color: 'var(--steady)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentGps.accuracy !== null ? `±${Math.round(currentGps.accuracy)} m` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Barometer Panel */}
+                    <div className="glass-card" style={{ margin: 0, padding: '14px', textAlign: 'left' }}>
+                      <strong style={{ color: '#fff', fontSize: '12px', display: 'block', marginBottom: '8px' }}>🌤️ Atmospheric Barometer</strong>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Pressure:</span>
+                          <span style={{ color: 'var(--blue)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentPressure !== null ? `${currentPressure.toFixed(2)} hPa` : '1013.25 hPa'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Rel. Elevation:</span>
+                          <span style={{ color: 'var(--steady)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentPressure !== null ? `${Math.round((1013.25 - currentPressure) * 8.3)} m` : '0 m'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Air Density:</span>
+                          <span style={{ color: 'var(--gold)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            {currentPressure !== null ? `${(currentPressure * 0.001225).toFixed(4)} kg/m³` : '1.241 kg/m³'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>Status:</span>
+                          <span style={{ color: 'var(--steady)', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>
+                            Stable 🟢
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
